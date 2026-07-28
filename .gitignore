@@ -1,0 +1,65 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Xcode
+DerivedData/
+build/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# Build products
+dist/
+*.app/
+*.o
+*.d
+
+# Signing / distribution credentials — never commit
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+*.keychain
+*.keychain-db
+ExportOptions.plist
+notarization*.json
+AuthKey_*.p8
+
+# Local environment
+.env
+.env.*
+!.env.example
+*.local
+
+# Local app data — user task content must never be published
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+QuickWins-diagnostics*.txt
+diagnostics/
+*.log
+
+# Editor / tooling
+.vscode/
+.idea/
+*.swp
+*~
