@@ -61,5 +61,6 @@ diagnostics/
 # Editor / tooling
 .vscode/
 .idea/
+.claude/
 *.swp
 *~
