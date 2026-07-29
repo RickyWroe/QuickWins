@@ -44,6 +44,17 @@ public struct ShortcutBinding: Codable, Equatable, Sendable {
         carbonModifiers: CarbonModifier.option,
         display: "⌥Space"
     )
+
+    /// Option+Q for the mini HUD, pairing with Option+Space for the full panel.
+    ///
+    /// A global hot key consumes the keystroke system-wide, so a bare Shift+letter combination
+    /// would make that capital letter untypable everywhere. Every default here carries a
+    /// non-shift modifier for that reason.
+    public static let miniHUDDefault = ShortcutBinding(
+        keyCode: 12,
+        carbonModifiers: CarbonModifier.option,
+        display: "⌥Q"
+    )
 }
 
 public struct AppSettings: Codable, Equatable, Sendable {
@@ -55,6 +66,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var launchAtLogin: Bool
     public var shortcut: ShortcutBinding
     public var shortcutEnabled: Bool
+    /// Opens the compact cursor HUD rather than the full panel.
+    public var miniHUDShortcut: ShortcutBinding
+    public var miniHUDShortcutEnabled: Bool
+    /// Seconds before the HUD fades on its own. Zero keeps it up until dismissed.
+    public var miniHUDAutoHideSeconds: TimeInterval
     public var hasSeenWelcome: Bool
 
     public static let `default` = AppSettings(
@@ -65,6 +81,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         launchAtLogin: false,
         shortcut: .default,
         shortcutEnabled: true,
+        miniHUDShortcut: .miniHUDDefault,
+        miniHUDShortcutEnabled: true,
+        miniHUDAutoHideSeconds: 5,
         hasSeenWelcome: false
     )
 
@@ -76,6 +95,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         launchAtLogin: Bool,
         shortcut: ShortcutBinding,
         shortcutEnabled: Bool,
+        miniHUDShortcut: ShortcutBinding,
+        miniHUDShortcutEnabled: Bool,
+        miniHUDAutoHideSeconds: TimeInterval,
         hasSeenWelcome: Bool
     ) {
         self.accountability = accountability
@@ -85,6 +107,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.launchAtLogin = launchAtLogin
         self.shortcut = shortcut
         self.shortcutEnabled = shortcutEnabled
+        self.miniHUDShortcut = miniHUDShortcut
+        self.miniHUDShortcutEnabled = miniHUDShortcutEnabled
+        self.miniHUDAutoHideSeconds = miniHUDAutoHideSeconds
         self.hasSeenWelcome = hasSeenWelcome
     }
 
@@ -99,12 +124,16 @@ public struct AppSettings: Codable, Equatable, Sendable {
         launchAtLogin = (try? container.decode(Bool.self, forKey: .launchAtLogin)) ?? fallback.launchAtLogin
         shortcut = (try? container.decode(ShortcutBinding.self, forKey: .shortcut)) ?? fallback.shortcut
         shortcutEnabled = (try? container.decode(Bool.self, forKey: .shortcutEnabled)) ?? fallback.shortcutEnabled
+        miniHUDShortcut = (try? container.decode(ShortcutBinding.self, forKey: .miniHUDShortcut)) ?? fallback.miniHUDShortcut
+        miniHUDShortcutEnabled = (try? container.decode(Bool.self, forKey: .miniHUDShortcutEnabled)) ?? fallback.miniHUDShortcutEnabled
+        miniHUDAutoHideSeconds = (try? container.decode(TimeInterval.self, forKey: .miniHUDAutoHideSeconds)) ?? fallback.miniHUDAutoHideSeconds
         hasSeenWelcome = (try? container.decode(Bool.self, forKey: .hasSeenWelcome)) ?? fallback.hasSeenWelcome
     }
 
     public func sanitized() -> AppSettings {
         var copy = self
         copy.accountability = accountability.sanitized()
+        copy.miniHUDAutoHideSeconds = min(max(0, miniHUDAutoHideSeconds), 60)
         return copy
     }
 }

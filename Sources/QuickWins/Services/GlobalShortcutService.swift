@@ -29,8 +29,15 @@ final class GlobalShortcutService {
     private static var nextIdentifier: UInt32 = 1
     private static let signature: FourCharCode = 0x5157_6E73 // 'QWns'
 
+    /// The Carbon event handler is installed once per process, not once per service.
+    ///
+    /// `InstallEventHandler` refuses a duplicate registration of the same callback on the same
+    /// target with `eventHandlerAlreadyInstalledErr`, so a second service instance would fail to
+    /// install and its hot key would never fire. One shared handler is also all that is needed:
+    /// it dispatches by hot-key id through `handlers`.
+    private static var sharedHandlerRef: EventHandlerRef?
+
     private var hotKeyRef: EventHotKeyRef?
-    private var handlerRef: EventHandlerRef?
     private var identifier: UInt32?
 
     private let logger: DiagnosticLogging
@@ -41,8 +48,8 @@ final class GlobalShortcutService {
     }
 
     deinit {
+        // The shared handler outlives individual services and is torn down with the process.
         if let hotKeyRef { UnregisterEventHotKey(hotKeyRef) }
-        if let handlerRef { RemoveEventHandler(handlerRef) }
     }
 
     private(set) var registeredBinding: ShortcutBinding?
@@ -87,7 +94,7 @@ final class GlobalShortcutService {
     }
 
     private func installHandlerIfNeeded() throws {
-        guard handlerRef == nil else { return }
+        guard Self.sharedHandlerRef == nil else { return }
         var spec = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: UInt32(kEventHotKeyPressed)
@@ -101,10 +108,11 @@ final class GlobalShortcutService {
             nil,
             &reference
         )
-        guard status == noErr else {
+        // Already installed is success, not failure — it means another code path beat us to it.
+        guard status == noErr || status == OSStatus(eventHandlerAlreadyInstalledErr) else {
             throw GlobalShortcutError.handlerInstallFailed(status)
         }
-        handlerRef = reference
+        Self.sharedHandlerRef = reference
     }
 
     fileprivate static func fire(identifier: UInt32) {
