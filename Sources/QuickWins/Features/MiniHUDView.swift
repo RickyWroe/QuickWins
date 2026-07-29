@@ -8,6 +8,10 @@ import SwiftUI
 /// a click opens.
 struct MiniHUDView: View {
     @ObservedObject var model: AppModel
+    /// False while the HUD follows the pointer, when it is click-through and can never be
+    /// hovered or tapped — showing hover affordances then would promise something that cannot
+    /// happen.
+    let isInteractive: Bool
     let openPanel: () -> Void
 
     @State private var isHovering = false
@@ -37,13 +41,13 @@ struct MiniHUDView: View {
         )
         .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
         .contentShape(Capsule())
-        .onHover { isHovering = $0 }
-        .onTapGesture(perform: openPanel)
-        .help("Open the QuickWins panel")
+        .onHover { isHovering = isInteractive && $0 }
+        .onTapGesture { if isInteractive { openPanel() } }
+        .help(isInteractive ? "Open the QuickWins panel" : "")
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityHint("Opens the full task panel")
+        .accessibilityAddTraits(isInteractive ? [.isButton] : [])
+        .accessibilityHint(isInteractive ? "Opens the full task panel" : "")
     }
 
     /// The task's colour, with the run state carried by a glyph rather than by the colour — the

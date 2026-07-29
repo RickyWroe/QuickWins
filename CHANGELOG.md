@@ -10,8 +10,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - **Mini HUD.** A compact capsule beside the pointer showing the current task's colour and elapsed
-  time, on `⌥Q` by default. It never takes keyboard focus, hides itself after a configurable
-  delay, and opens the full panel when clicked.
+  time, on `⌥Q` by default. It never takes keyboard focus and hides itself after a configurable
+  delay.
+- **The HUD follows the pointer**, flipping at screen edges and crossing between displays. While
+  following it is click-through, so it never intercepts a click meant for what is underneath —
+  a window attached to the cursor could not be clicked anyway. Turn *Follow the pointer* off to
+  place it once where the pointer was, which makes it clickable to open the full panel.
 - **Per-task colours.** Eight colours, assigned in rotation as tasks are created and changeable
   from the task editor, the row context menu, or the active card's ⋯ menu. Shown as a dot in the
   HUD, the active card, and every task row, always alongside a status glyph and a spoken colour

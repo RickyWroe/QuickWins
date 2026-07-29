@@ -14,7 +14,7 @@ Run the automated suite with:
 ./Scripts/test.sh
 ```
 
-Last executed: **141 tests in 13 suites, all passing.**
+Last executed: **146 tests in 14 suites, all passing.**
 
 ---
 
@@ -97,7 +97,9 @@ Last executed: **141 tests in 13 suites, all passing.**
 | M1 | ⌥Q shows the HUD beside the pointer | **[PENDING]** | Registration is **[VERIFIED]** — the unified log records `Registered global shortcut ⌥Q` at launch. Its appearance on screen still needs one keypress. |
 | M2 | HUD does not steal keyboard focus | **[PENDING]** | Start typing in another app, press ⌥Q, keep typing. The panel is created with `acceptsKey: false` and shown with `orderFrontRegardless`. |
 | M3 | HUD auto-hides | **[PENDING]** | Default 5 s; set to 0 in Settings for "stays open". |
-| M4 | Clicking the HUD opens the full panel | **[PENDING]** | |
+| M4 | HUD follows the pointer | **[VERIFIED]** | A harness driving the real `ScreenPositioning` code with a live `NSPanel`, sweeping the cursor with `CGWarpMouseCursorPosition`, recorded 27 repositions across 27 distinct positions with 0 placement mismatches and the panel fully on a screen at every sample, including screen-edge and menu-bar-overlap cases. |
+| M4b | HUD is click-through while following | **[PENDING]** | Press ⌥Q, then click a button underneath the HUD. The click must reach that button. `ignoresMouseEvents` is set whenever following is on. |
+| M4c | Clicking the HUD opens the panel with following off | **[PENDING]** | Settings › General › Mini HUD › turn off *Follow the pointer*, press ⌥Q, click the capsule. |
 | M5 | HUD shows the task colour and elapsed time | **[PENDING]** | A pause glyph sits inside the dot when stopped, so run state is not colour-only. |
 | M6 | New tasks get distinct colours | **[AUTO]** | *New tasks are handed distinct colours so a day's list is legible at a glance*. |
 | M7 | Changing a colour persists | **[AUTO]** | *Changing a task's colour persists it*; *Colour survives a round trip through the store*. |

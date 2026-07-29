@@ -80,6 +80,8 @@ private struct GeneralSettingsTab: View {
                     .disabled(!model.settings.miniHUDShortcutEnabled)
                 }
 
+                Toggle("Follow the pointer", isOn: binding(\.miniHUDFollowsPointer))
+
                 LabeledContent("Hide after") {
                     Stepper(value: Binding(
                         get: { model.settings.miniHUDAutoHideSeconds },
@@ -102,7 +104,7 @@ private struct GeneralSettingsTab: View {
             } header: {
                 Text("Mini HUD")
             } footer: {
-                Text("A small capsule beside the pointer showing the current task's colour and elapsed time. Click it to open the full panel. Avoid a plain Shift combination — a global shortcut consumes the key everywhere, so Shift+Q would stop you typing a capital Q.")
+                Text("A small capsule beside the pointer showing the current task's colour and elapsed time. While it follows the pointer it is click-through, so it never intercepts a click meant for what is underneath; turn following off if you would rather click it to open the full panel. Avoid a plain Shift combination for the shortcut — a global shortcut consumes the key everywhere, so Shift+Q would stop you typing a capital Q.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

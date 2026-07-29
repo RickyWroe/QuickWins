@@ -143,7 +143,8 @@ and dispatches by hot-key id. Installing per service instance silently breaks ev
 the first.
 
 **The ticker only runs when something depends on it.** No active task, no visible panel and no
-visible HUD means no timer at all.
+visible HUD means no timer at all. The HUD's 60 Hz follow timer is separate and runs only while
+the HUD is on screen, skipping the window-server call entirely when the pointer has not moved.
 
 ### Core Data instead of SwiftData
 
@@ -207,12 +208,18 @@ time and nothing else — for when you want to check in without opening the pane
  ●  34:18
 ```
 
-- Appears beside the pointer on the display you are pointing at.
+- **Follows the pointer**, staying 12 points down and to the right of it, flipping at screen
+  edges and moving between displays as you do.
+- **Click-through while following.** A window glued to the cursor cannot be clicked — you can
+  never reach it — and one that accepted clicks would swallow them on whatever is underneath. So
+  it ignores mouse events entirely and never gets in your way.
 - **Never takes keyboard focus**, so pressing `⌥Q` mid-sentence does not interrupt typing.
 - Hides itself after a few seconds (configurable, or set to stay open).
-- Click it to open the full panel.
 - A pause glyph sits inside the dot when the timer is stopped, so run state is never conveyed by
   colour alone.
+
+Turn **Follow the pointer** off in Settings and it reverts to being placed once where the pointer
+was, which makes it clickable — clicking then opens the full panel.
 
 Each task carries one of eight colours, handed out in rotation as tasks are created so a day's
 list is legible immediately. Change one from the task editor, the row's context menu, or the

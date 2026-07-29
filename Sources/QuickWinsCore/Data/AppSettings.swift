@@ -71,6 +71,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var miniHUDShortcutEnabled: Bool
     /// Seconds before the HUD fades on its own. Zero keeps it up until dismissed.
     public var miniHUDAutoHideSeconds: TimeInterval
+    /// Keeps the HUD glued to the pointer instead of placing it once where the pointer was.
+    ///
+    /// While following, the HUD is click-through: a window that moves with the cursor cannot be
+    /// clicked, and one that accepted clicks would swallow them on whatever is underneath.
+    public var miniHUDFollowsPointer: Bool
     public var hasSeenWelcome: Bool
 
     public static let `default` = AppSettings(
@@ -84,6 +89,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDShortcut: .miniHUDDefault,
         miniHUDShortcutEnabled: true,
         miniHUDAutoHideSeconds: 5,
+        miniHUDFollowsPointer: true,
         hasSeenWelcome: false
     )
 
@@ -98,6 +104,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDShortcut: ShortcutBinding,
         miniHUDShortcutEnabled: Bool,
         miniHUDAutoHideSeconds: TimeInterval,
+        miniHUDFollowsPointer: Bool,
         hasSeenWelcome: Bool
     ) {
         self.accountability = accountability
@@ -110,6 +117,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.miniHUDShortcut = miniHUDShortcut
         self.miniHUDShortcutEnabled = miniHUDShortcutEnabled
         self.miniHUDAutoHideSeconds = miniHUDAutoHideSeconds
+        self.miniHUDFollowsPointer = miniHUDFollowsPointer
         self.hasSeenWelcome = hasSeenWelcome
     }
 
@@ -127,6 +135,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDShortcut = (try? container.decode(ShortcutBinding.self, forKey: .miniHUDShortcut)) ?? fallback.miniHUDShortcut
         miniHUDShortcutEnabled = (try? container.decode(Bool.self, forKey: .miniHUDShortcutEnabled)) ?? fallback.miniHUDShortcutEnabled
         miniHUDAutoHideSeconds = (try? container.decode(TimeInterval.self, forKey: .miniHUDAutoHideSeconds)) ?? fallback.miniHUDAutoHideSeconds
+        miniHUDFollowsPointer = (try? container.decode(Bool.self, forKey: .miniHUDFollowsPointer)) ?? fallback.miniHUDFollowsPointer
         hasSeenWelcome = (try? container.decode(Bool.self, forKey: .hasSeenWelcome)) ?? fallback.hasSeenWelcome
     }
 
