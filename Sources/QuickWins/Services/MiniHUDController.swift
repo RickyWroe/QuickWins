@@ -105,6 +105,11 @@ final class MiniHUDController {
         // speed that dominates the cost of following. The capsule's border carries the edge.
         panel.hasShadow = !follows
 
+        // Force a layout pass first: the hosting controller sizes the window from its SwiftUI
+        // content asynchronously, and placing a not-yet-sized window puts it in the wrong spot
+        // until the next poll corrects it.
+        panel.layoutIfNeeded()
+
         lastCursor = nil
         reposition(panel)
         panel.orderFrontRegardless()
