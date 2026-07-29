@@ -37,6 +37,10 @@ struct ActiveTaskCard: View {
 
     private var header: some View {
         HStack(spacing: 6) {
+            Circle()
+                .fill(task.color.swatch)
+                .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
             Text("Current focus")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -133,6 +137,11 @@ struct ActiveTaskCard: View {
 
             Menu {
                 Button("Edit…") { model.editingTask = task }
+                Menu("Colour") {
+                    ForEach(TaskColor.allCases) { color in
+                        Button(color.displayName) { model.setColor(color, for: task.id) }
+                    }
+                }
                 Button("Skip") { model.skip(task.id) }
                 Button("Move to tomorrow") { model.moveToTomorrow(task.id) }
                 Divider()
@@ -171,7 +180,7 @@ struct ActiveTaskCard: View {
     }
 
     private var accessibilitySummary: String {
-        var parts = [task.status.accessibilityDescription, "elapsed \(FocusTimeFormatter.spoken(elapsed))"]
+        var parts = [task.color.displayName, task.status.accessibilityDescription, "elapsed \(FocusTimeFormatter.spoken(elapsed))"]
         if let remaining = session.remaining(at: model.now), remaining > 0 {
             parts.append("\(FocusTimeFormatter.spoken(remaining)) remaining")
         }

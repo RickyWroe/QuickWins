@@ -7,18 +7,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let environment: AppEnvironment
     let model: AppModel
     let panelController: FloatingPanelController
+    let hudController: MiniHUDController
     private let shortcutService: GlobalShortcutService
+    private let hudShortcutService: GlobalShortcutService
 
-    /// Surfaced in Settings when macOS refused the configured hot key.
+    /// Surfaced in Settings when macOS refused a configured hot key.
     @Published private(set) var shortcutError: String?
+    @Published private(set) var hudShortcutError: String?
 
     override init() {
         let environment = AppEnvironment()
         self.environment = environment
         let model = AppModel(environment: environment)
         self.model = model
-        self.panelController = FloatingPanelController(model: model, logger: environment.logger)
+        let panelController = FloatingPanelController(model: model, logger: environment.logger)
+        self.panelController = panelController
+        self.hudController = MiniHUDController(
+            model: model,
+            logger: environment.logger,
+            openPanel: { panelController.show() }
+        )
         self.shortcutService = GlobalShortcutService(logger: environment.logger)
+        self.hudShortcutService = GlobalShortcutService(logger: environment.logger)
         super.init()
     }
 
@@ -38,6 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         shortcutService.onTrigger = { [weak self] in
             self?.panelController.toggle()
+        }
+        hudShortcutService.onTrigger = { [weak self] in
+            self?.hudController.toggle()
         }
         applyShortcut()
 
@@ -60,29 +73,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         shortcutService.unregister()
+        hudShortcutService.unregister()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         environment.logger.info("lifecycle", "QuickWins terminating.")
     }
 
-    /// Re-registers after the user edits the shortcut in Settings.
+    /// Re-registers both hot keys after the user edits them in Settings.
     func applyShortcut() {
-        guard model.settings.shortcutEnabled else {
-            shortcutService.unregister()
-            shortcutError = nil
-            return
+        shortcutError = register(
+            model.settings.shortcut,
+            enabled: model.settings.shortcutEnabled,
+            with: shortcutService,
+            label: "panel"
+        )
+        hudShortcutError = register(
+            model.settings.miniHUDShortcut,
+            enabled: model.settings.miniHUDShortcutEnabled,
+            with: hudShortcutService,
+            label: "hud"
+        )
+    }
+
+    /// Returns a message to show the user, or nil on success.
+    ///
+    /// A conflict must not be silent: without a working hot key the surface is only reachable
+    /// from the menu bar, and the user needs to know to pick another key.
+    private func register(
+        _ binding: ShortcutBinding,
+        enabled: Bool,
+        with service: GlobalShortcutService,
+        label: String
+    ) -> String? {
+        guard enabled else {
+            service.unregister()
+            return nil
         }
         do {
-            try shortcutService.register(model.settings.shortcut)
-            shortcutError = nil
+            try service.register(binding)
+            return nil
         } catch {
-            // A conflict must not be silent: without a working hot key the panel is only
-            // reachable from the menu bar, and the user needs to know to pick another key.
-            shortcutError = error.localizedDescription
-            environment.logger.error("shortcut", "Shortcut unavailable: \(error.localizedDescription)")
+            environment.logger.error("shortcut", "\(label) shortcut unavailable: \(error.localizedDescription)")
+            return error.localizedDescription
         }
     }
 
     var currentShortcutError: String? { shortcutError }
+    var currentHUDShortcutError: String? { hudShortcutError }
+
+    func toggleHUD() {
+        hudController.toggle()
+    }
 
     @objc private func systemDidWake() {
         environment.logger.info("lifecycle", "System woke from sleep.")

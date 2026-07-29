@@ -5,11 +5,17 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var model: AppModel
     let shortcutError: String?
+    let hudShortcutError: String?
     let applyShortcut: () -> Void
 
     var body: some View {
         TabView {
-            GeneralSettingsTab(model: model, shortcutError: shortcutError, applyShortcut: applyShortcut)
+            GeneralSettingsTab(
+                model: model,
+                shortcutError: shortcutError,
+                hudShortcutError: hudShortcutError,
+                applyShortcut: applyShortcut
+            )
                 .tabItem { Label("General", systemImage: "gearshape") }
 
             AlertSettingsTab(model: model)
@@ -27,6 +33,7 @@ struct SettingsView: View {
 private struct GeneralSettingsTab: View {
     @ObservedObject var model: AppModel
     let shortcutError: String?
+    let hudShortcutError: String?
     let applyShortcut: () -> Void
 
     @State private var launchAtLoginError: String?
@@ -56,6 +63,48 @@ private struct GeneralSettingsTab: View {
                 }
             } header: {
                 Text("Opening the panel")
+            }
+
+            Section {
+                Toggle("Enable mini HUD shortcut", isOn: binding(\.miniHUDShortcutEnabled))
+                    .onChange(of: model.settings.miniHUDShortcutEnabled) { _, _ in applyShortcut() }
+
+                LabeledContent("Shortcut") {
+                    ShortcutRecorder(binding: Binding(
+                        get: { model.settings.miniHUDShortcut },
+                        set: { newValue in
+                            model.updateSettings { $0.miniHUDShortcut = newValue }
+                            applyShortcut()
+                        }
+                    ))
+                    .disabled(!model.settings.miniHUDShortcutEnabled)
+                }
+
+                LabeledContent("Hide after") {
+                    Stepper(value: Binding(
+                        get: { model.settings.miniHUDAutoHideSeconds },
+                        set: { value in model.updateSettings { $0.miniHUDAutoHideSeconds = value } }
+                    ), in: 0...60, step: 1) {
+                        Text(model.settings.miniHUDAutoHideSeconds == 0
+                             ? "Stays open"
+                             : "\(Int(model.settings.miniHUDAutoHideSeconds))s")
+                            .font(.callout.monospacedDigit())
+                            .frame(minWidth: 76, alignment: .trailing)
+                    }
+                }
+
+                if let hudShortcutError {
+                    Label(hudShortcutError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } header: {
+                Text("Mini HUD")
+            } footer: {
+                Text("A small capsule beside the pointer showing the current task's colour and elapsed time. Click it to open the full panel. Avoid a plain Shift combination — a global shortcut consumes the key everywhere, so Shift+Q would stop you typing a capital Q.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section {

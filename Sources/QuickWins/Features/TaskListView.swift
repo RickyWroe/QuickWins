@@ -102,6 +102,12 @@ struct TaskRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel(isFinished ? "Restore \(task.title)" : "Complete \(task.title)")
 
+            Circle()
+                .fill(task.color.swatch)
+                .frame(width: 7, height: 7)
+                .opacity(isFinished ? 0.4 : 1)
+                .accessibilityHidden(true)
+
             VStack(alignment: .leading, spacing: 1) {
                 Text(task.title)
                     .font(.callout)
@@ -197,7 +203,7 @@ struct TaskRow: View {
     }
 
     private var accessibilityValue: String {
-        var parts = [task.status.accessibilityDescription]
+        var parts = [task.color.displayName, task.status.accessibilityDescription]
         if task.accumulatedFocus > 0 {
             parts.append("focused \(FocusTimeFormatter.spoken(task.accumulatedFocus))")
         }

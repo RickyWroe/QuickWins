@@ -12,6 +12,7 @@ struct TaskEditorView: View {
     @State private var estimateMinutes: Double
     @State private var hasEstimate: Bool
     @State private var idleDetectionEnabled: Bool
+    @State private var color: TaskColor
 
     init(model: AppModel, task: DailyTask) {
         self.model = model
@@ -21,6 +22,7 @@ struct TaskEditorView: View {
         _hasEstimate = State(initialValue: task.estimatedDuration != nil)
         _estimateMinutes = State(initialValue: (task.estimatedDuration ?? 1_800) / 60)
         _idleDetectionEnabled = State(initialValue: task.idleDetectionEnabled)
+        _color = State(initialValue: task.color)
     }
 
     private var trimmedTitle: String {
@@ -50,6 +52,11 @@ struct TaskEditorView: View {
                             .strokeBorder(Color.primary.opacity(0.15))
                     )
                     .accessibilityLabel("Task notes")
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Colour").font(.caption).foregroundStyle(.secondary)
+                TaskColorPicker(selection: $color)
             }
 
             Toggle("Estimated duration", isOn: $hasEstimate)
@@ -98,6 +105,9 @@ struct TaskEditorView: View {
         )
         if idleDetectionEnabled != task.idleDetectionEnabled {
             model.setIdleDetection(idleDetectionEnabled, for: task.id)
+        }
+        if color != task.color {
+            model.setColor(color, for: task.id)
         }
         dismiss()
     }

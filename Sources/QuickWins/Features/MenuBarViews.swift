@@ -52,7 +52,7 @@ struct MenuBarLabel: View {
 struct MenuBarContent: View {
     @ObservedObject var model: AppModel
     let openPanel: () -> Void
-    let applyShortcut: () -> Void
+    let toggleHUD: () -> Void
 
     var body: some View {
         if let task = model.focusTask {
@@ -73,6 +73,8 @@ struct MenuBarContent: View {
 
         Button("Open task panel") { openPanel() }
             .keyboardShortcut("o", modifiers: [.command, .shift])
+
+        Button("Show mini HUD") { toggleHUD() }
 
         if !model.tasks.isEmpty {
             Menu("Today's tasks") {

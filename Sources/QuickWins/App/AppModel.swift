@@ -30,6 +30,7 @@ final class AppModel: ObservableObject {
     private enum TickReason: Hashable {
         case runningTask
         case panelVisible
+        case hudVisible
     }
 
     init(environment: AppEnvironment) {
@@ -89,6 +90,17 @@ final class AppModel: ObservableObject {
         syncTicker()
     }
 
+    func hudDidAppear() {
+        tickingReason.insert(.hudVisible)
+        now = environment.time.now
+        syncTicker()
+    }
+
+    func hudDidDisappear() {
+        tickingReason.remove(.hudVisible)
+        syncTicker()
+    }
+
     /// Called when the machine wakes; a long sleep may have invalidated the running session.
     func systemDidWake() {
         coordinator.restoreInterruptedSessionIfNeeded()
@@ -141,6 +153,7 @@ final class AppModel: ObservableObject {
     func clearError() { coordinator.clearError() }
     func resetAllData() { coordinator.resetAllData() }
     func setIdleDetection(_ enabled: Bool, for id: UUID) { coordinator.setIdleDetection(enabled, for: id) }
+    func setColor(_ color: TaskColor, for id: UUID) { coordinator.setColor(color, for: id) }
 
     func complete(_ id: UUID) {
         let wasSelected = selectedTaskID == id

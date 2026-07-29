@@ -9,7 +9,12 @@ import AppKit
 final class FloatingPanel: NSPanel {
     var onCancel: (() -> Void)?
 
-    init(contentRect: NSRect) {
+    /// The mini HUD is a glance, not a place to type. Refusing key status keeps the user's
+    /// keyboard focus in whatever app they were already working in.
+    private let acceptsKey: Bool
+
+    init(contentRect: NSRect, acceptsKey: Bool = true) {
+        self.acceptsKey = acceptsKey
         super.init(
             contentRect: contentRect,
             styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView],
@@ -33,7 +38,7 @@ final class FloatingPanel: NSPanel {
         isReleasedWhenClosed = false
     }
 
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool { acceptsKey }
     /// Staying non-main keeps the previously active app's menu bar in place.
     override var canBecomeMain: Bool { false }
 
