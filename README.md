@@ -72,10 +72,10 @@ swift build -c release
 ./Scripts/test.sh
 ```
 
-129 tests across 11 suites, written with **Swift Testing**. They cover the domain rules, the
+141 tests across 13 suites, written with **Swift Testing**. They cover the domain rules, the
 repository, timer durability, the accountability state machine, screen positioning, notification
-scheduling, settings storage, and defensive handling of corrupt data — all with injected clocks
-and idle values, so nothing sleeps and nothing is flaky.
+scheduling, settings storage, schema migration, and defensive handling of corrupt data — all with
+injected clocks and idle values, so nothing sleeps and nothing is flaky.
 
 The script exists because the Swift Testing framework bundled with Command Line Tools is not on
 the default search path the way it is inside Xcode. With a full Xcode install, plain `swift test`
@@ -91,7 +91,7 @@ Two targets, with a hard boundary between them.
 why the full lifecycle is testable without a UI.
 
 ```
-Domain/     DailyTask, TaskStatus, DayKey, FocusSession,
+Domain/     DailyTask, TaskStatus, TaskColor, DayKey, FocusSession,
             AccountabilityState, TaskRules
 Data/       CoreDataStack, MigrationPlan, TaskRepository (+ Core Data
             and in-memory implementations), AppSettings, SettingsStore
@@ -104,10 +104,11 @@ Services/   TimeSource, IdleDetectionService, AccountabilityEngine,
 
 ```
 App/        QuickWinsApp, AppDelegate, AppEnvironment, AppModel
-Services/   FloatingPanel, FloatingPanelController, GlobalShortcutService
+Services/   FloatingPanel, FloatingPanelController, MiniHUDController,
+            GlobalShortcutService
 Features/   PanelRootView, ProgressHeader, ActiveTaskCard, TaskListView,
             QuickAddField, TaskEditorView, SettingsView, MenuBarViews,
-            ShortcutRecorder, Theme
+            MiniHUDView, ShortcutRecorder, Theme
 ```
 
 ### Decisions worth knowing
@@ -133,10 +134,16 @@ config and an instant, `AccountabilityEngine.evaluate` returns the next state an
 effects. The escalation ladder is tested exhaustively without waiting fifteen real minutes.
 
 **Screen positioning is pure geometry.** It operates on plain rectangles, not `NSScreen`, so
-multi-monitor behaviour, edge flipping and clamping are all verified headlessly.
+multi-monitor behaviour, edge flipping and clamping are all verified headlessly. The panel and the
+mini HUD share it, so both appear in a consistent spot relative to the pointer.
 
-**The ticker only runs when something depends on it.** No active task and no visible panel means no
-timer at all.
+**One Carbon event handler, many hot keys.** `InstallEventHandler` refuses a duplicate
+registration of the same callback on the same target, so the handler is installed once per process
+and dispatches by hot-key id. Installing per service instance silently breaks every hot key after
+the first.
+
+**The ticker only runs when something depends on it.** No active task, no visible panel and no
+visible HUD means no timer at all.
 
 ### Core Data instead of SwiftData
 
@@ -166,7 +173,8 @@ layer, the services, the views and every test stay untouched.
 
 | Shortcut | Action |
 |---|---|
-| `⌥Space` | Show or hide the panel (configurable) |
+| `⌥Space` | Show or hide the full panel (configurable) |
+| `⌥Q` | Show or hide the mini HUD beside the pointer (configurable) |
 
 **While the panel is open**
 
@@ -184,6 +192,32 @@ layer, the services, the views and every test stay untouched.
 `⌥Space` is the default because it is unassigned in a stock macOS install — `⌘Space` belongs to
 Spotlight and `⌃Space` to input-source switching. If macOS refuses the registration, Settings shows
 the conflict and the menu-bar item still opens the panel.
+
+> **Avoid a plain Shift combination.** A global hot key *consumes* the keystroke system-wide, so
+> binding `⇧Q` would stop you typing a capital Q in every app on the Mac. Every default here
+> carries a non-Shift modifier for that reason. The recorder also rejects a bare key with no
+> modifier at all.
+
+## Mini HUD
+
+A capsule roughly the size of a menu-bar item, showing the current task's colour and its elapsed
+time and nothing else — for when you want to check in without opening the panel.
+
+```
+ ●  34:18
+```
+
+- Appears beside the pointer on the display you are pointing at.
+- **Never takes keyboard focus**, so pressing `⌥Q` mid-sentence does not interrupt typing.
+- Hides itself after a few seconds (configurable, or set to stay open).
+- Click it to open the full panel.
+- A pause glyph sits inside the dot when the timer is stopped, so run state is never conveyed by
+  colour alone.
+
+Each task carries one of eight colours, handed out in rotation as tasks are created so a day's
+list is legible immediately. Change one from the task editor, the row's context menu, or the
+active card's ⋯ menu. Colour is always accompanied by the colour's name in VoiceOver and by a
+status glyph on screen — it is identity, never state.
 
 ---
 

@@ -5,6 +5,34 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-07-29
+
+### Added
+
+- **Mini HUD.** A compact capsule beside the pointer showing the current task's colour and elapsed
+  time, on `⌥Q` by default. It never takes keyboard focus, hides itself after a configurable
+  delay, and opens the full panel when clicked.
+- **Per-task colours.** Eight colours, assigned in rotation as tasks are created and changeable
+  from the task editor, the row context menu, or the active card's ⋯ menu. Shown as a dot in the
+  HUD, the active card, and every task row, always alongside a status glyph and a spoken colour
+  name so nothing depends on colour alone.
+- Schema v2 adding the colour attribute, with lightweight migration from v1 verified against a
+  real v1 store.
+- A second configurable global shortcut, with its own conflict reporting in Settings.
+- `Show mini HUD` in the menu-bar menu.
+
+### Fixed
+
+- **Only the first global hot key worked.** Each `GlobalShortcutService` installed its own Carbon
+  event handler on the shared dispatcher target, and `InstallEventHandler` rejects a duplicate
+  with `eventHandlerAlreadyInstalledErr` — so adding the HUD shortcut left it silently dead. The
+  handler is now installed once per process and dispatches by hot-key id.
+
+### Notes
+
+- The schema version stamp is written with the next store save rather than at launch. It is used
+  only for diagnostics, and the comment in `CoreDataStack` now says so.
+
 ## [1.0.0] — 2026-07-28
 
 Initial implementation.
@@ -66,8 +94,8 @@ Initial implementation.
 - Bounded in-memory diagnostic log that never records task content.
 
 **Tests**
-- 129 tests in 11 suites using Swift Testing, with injected clocks, idle values, notification
-  recorders, and repositories.
+- Tests in Swift Testing, with injected clocks, idle values, notification recorders, and
+  repositories.
 
 ### Notes
 
@@ -78,4 +106,5 @@ Initial implementation.
 - Ships without an app icon, which needs Xcode's asset tooling.
 - Ad-hoc signed. Distribution to other Macs requires Developer ID signing and notarization.
 
+[1.1.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.1.0
 [1.0.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.0.0

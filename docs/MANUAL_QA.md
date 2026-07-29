@@ -14,7 +14,7 @@ Run the automated suite with:
 ./Scripts/test.sh
 ```
 
-Last executed: **129 tests in 11 suites, all passing.**
+Last executed: **141 tests in 13 suites, all passing.**
 
 ---
 
@@ -89,6 +89,22 @@ Last executed: **129 tests in 11 suites, all passing.**
 | 45 | Works across Spaces | **[PENDING]** | Switch Space, press the shortcut. `collectionBehavior` includes `.canJoinAllSpaces`. |
 | 46 | Full-screen app behaviour | **[PENDING]** | Enter full screen in another app, press the shortcut. `.fullScreenAuxiliary` is set; macOS does not always allow this — see README limitation 5. |
 | 47 | Reopening the app shows the panel | **[VERIFIED]** | `open dist/QuickWins.app` while running raised the panel. |
+
+## Mini HUD and task colours
+
+| # | Scenario | Status | Notes |
+|---|---|---|---|
+| M1 | ⌥Q shows the HUD beside the pointer | **[PENDING]** | Registration is **[VERIFIED]** — the unified log records `Registered global shortcut ⌥Q` at launch. Its appearance on screen still needs one keypress. |
+| M2 | HUD does not steal keyboard focus | **[PENDING]** | Start typing in another app, press ⌥Q, keep typing. The panel is created with `acceptsKey: false` and shown with `orderFrontRegardless`. |
+| M3 | HUD auto-hides | **[PENDING]** | Default 5 s; set to 0 in Settings for "stays open". |
+| M4 | Clicking the HUD opens the full panel | **[PENDING]** | |
+| M5 | HUD shows the task colour and elapsed time | **[PENDING]** | A pause glyph sits inside the dot when stopped, so run state is not colour-only. |
+| M6 | New tasks get distinct colours | **[AUTO]** | *New tasks are handed distinct colours so a day's list is legible at a glance*. |
+| M7 | Changing a colour persists | **[AUTO]** | *Changing a task's colour persists it*; *Colour survives a round trip through the store*. |
+| M8 | Colour picker in the editor | **[PENDING]** | Selection is marked with a ring **and** a checkmark, not colour alone. |
+| M9 | Migration from a pre-colour database | **[AUTO]** + **[VERIFIED]** | *A v1 store opens under v2 with its tasks intact and no data loss*. Also verified live: the running app logged `Store schema 1 opened by app schema 2` against a real v1 database and the existing task survived. |
+| M10 | Unknown or missing colour value | **[AUTO]** | *A row written before colours existed reads back as the neutral fallback*; *An unrecognised colour name falls back rather than failing the read*. |
+| M11 | Both hot keys work together | **[VERIFIED]** | Both `⌥Space` and `⌥Q` register at launch. This regressed once — see the 1.1.0 changelog — and the log is the check. |
 
 ## Menu bar and settings
 
