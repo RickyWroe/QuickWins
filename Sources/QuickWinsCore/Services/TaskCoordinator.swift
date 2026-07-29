@@ -221,6 +221,13 @@ public final class TaskCoordinator {
         }
     }
 
+    public func setColor(_ color: TaskColor, for id: UUID) {
+        guard var task = tasks.first(where: { $0.id == id }), task.color != color else { return }
+        task.color = color
+        task.lastInteractionAt = time.now
+        apply(replacing: [task])
+    }
+
     public func setIdleDetection(_ enabled: Bool, for id: UUID) {
         guard var task = tasks.first(where: { $0.id == id }) else { return }
         task.idleDetectionEnabled = enabled

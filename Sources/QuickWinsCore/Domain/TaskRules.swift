@@ -43,6 +43,7 @@ public enum TaskRules {
         notes: String? = nil,
         day: DayKey,
         estimatedDuration: TimeInterval? = nil,
+        color: TaskColor? = nil,
         in tasks: [DailyTask],
         at now: Date
     ) throws -> DailyTask {
@@ -56,6 +57,7 @@ public enum TaskRules {
             day: day,
             order: nextOrder,
             estimatedDuration: estimate,
+            color: color ?? .suggested(forOrder: nextOrder),
             lastInteractionAt: now
         )
     }

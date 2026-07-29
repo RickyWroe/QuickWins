@@ -137,6 +137,9 @@ public final class CoreDataTaskRepository: TaskRepository {
         object.setValue(task.sessionStartedAt, forKey: Key.sessionStartedAt)
         object.setValue(task.completedAt, forKey: Key.completedAt)
         object.setValue(task.status.rawValue, forKey: Key.statusRaw)
+        if object.entity.attributesByName[Key.colorRaw] != nil {
+            object.setValue(task.color.rawValue, forKey: Key.colorRaw)
+        }
         object.setValue(task.remindersEnabled, forKey: Key.remindersEnabled)
         object.setValue(task.idleDetectionEnabled, forKey: Key.idleDetectionEnabled)
         object.setValue(max(0, task.alertCount), forKey: Key.alertCount)
@@ -162,6 +165,14 @@ public final class CoreDataTaskRepository: TaskRepository {
             logger.error("persistence", "Task \(id.uuidString) had unknown status '\(statusRaw)'; defaulting to upcoming.")
         }
 
+        // Colour arrived in schema v2. `value(forKey:)` raises an Objective-C exception — not a
+        // Swift error, so it cannot be caught — if the attribute is missing from the entity, so
+        // the entity is asked first rather than trusting that migration has run. An unrecognised
+        // colour name is a label, not data worth failing over.
+        let hasColorAttribute = object.entity.attributesByName[Key.colorRaw] != nil
+        let colorRaw = hasColorAttribute ? object.value(forKey: Key.colorRaw) as? String : nil
+        let color = colorRaw.flatMap(TaskColor.init(rawValue:)) ?? .fallback
+
         let task = DailyTask(
             id: id,
             title: object.value(forKey: Key.title) as? String ?? "",
@@ -174,6 +185,7 @@ public final class CoreDataTaskRepository: TaskRepository {
             sessionStartedAt: object.value(forKey: Key.sessionStartedAt) as? Date,
             completedAt: object.value(forKey: Key.completedAt) as? Date,
             status: status,
+            color: color,
             remindersEnabled: object.value(forKey: Key.remindersEnabled) as? Bool ?? true,
             idleDetectionEnabled: object.value(forKey: Key.idleDetectionEnabled) as? Bool ?? true,
             alertCount: object.value(forKey: Key.alertCount) as? Int ?? 0,

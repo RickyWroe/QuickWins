@@ -127,6 +127,11 @@ public final class CoreDataStack {
     }
 
     /// Records which schema version wrote the store so a future version can branch on it.
+    ///
+    /// Core Data flushes store metadata with the next successful save rather than immediately,
+    /// so the stamp lands the first time anything is written — not at launch. It is only used
+    /// for diagnostics, so that delay costs nothing; migration decisions are driven by the model
+    /// version hashes Core Data maintains itself.
     private func stampSchemaVersion() throws {
         guard let store = container.persistentStoreCoordinator.persistentStores.first else { return }
         var metadata = store.metadata ?? [:]

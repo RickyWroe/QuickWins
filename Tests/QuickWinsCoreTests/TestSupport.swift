@@ -20,6 +20,7 @@ enum Fixture {
         status: TaskStatus = .upcoming,
         day: DayKey? = nil,
         estimate: TimeInterval? = nil,
+        color: TaskColor = .fallback,
         accumulated: TimeInterval = 0,
         sessionStartedAt: Date? = nil,
         createdAt: Date = Fixture.epoch
@@ -34,6 +35,7 @@ enum Fixture {
             accumulatedFocus: accumulated,
             sessionStartedAt: sessionStartedAt,
             status: status,
+            color: color,
             lastInteractionAt: createdAt
         )
     }

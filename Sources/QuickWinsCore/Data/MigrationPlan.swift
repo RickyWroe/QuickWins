@@ -10,8 +10,10 @@ import Foundation
 /// before it is added here.
 public enum SchemaVersion: Int, CaseIterable, Comparable, Sendable {
     case v1 = 1
+    /// Adds the per-task colour label.
+    case v2 = 2
 
-    public static var current: SchemaVersion { .v1 }
+    public static var current: SchemaVersion { .v2 }
 
     public static func < (lhs: SchemaVersion, rhs: SchemaVersion) -> Bool {
         lhs.rawValue < rhs.rawValue
@@ -24,7 +26,8 @@ public enum MigrationPlan {
 
     public static func model(for version: SchemaVersion) -> NSManagedObjectModel {
         switch version {
-        case .v1: return makeV1Model()
+        case .v1: return makeModel(includeColor: false)
+        case .v2: return makeModel(includeColor: true)
         }
     }
 
@@ -49,9 +52,17 @@ public enum MigrationPlan {
         public static let idleDetectionEnabled = "idleDetectionEnabled"
         public static let alertCount = "alertCount"
         public static let lastInteractionAt = "lastInteractionAt"
+        /// Added in v2.
+        public static let colorRaw = "colorRaw"
     }
 
-    private static func makeV1Model() -> NSManagedObjectModel {
+    /// Builds the entity for a given version.
+    ///
+    /// v1 → v2 adds one optional attribute with a default, which Core Data can infer a mapping
+    /// for, so lightweight migration handles existing stores without a mapping model. A change
+    /// that cannot be inferred — renaming or retyping an attribute, or splitting an entity —
+    /// must ship an explicit `NSMappingModel` before its version is added here.
+    private static func makeModel(includeColor: Bool) -> NSManagedObjectModel {
         let model = NSManagedObjectModel()
         let entity = NSEntityDescription()
         entity.name = TaskEntityKey.entityName
@@ -59,7 +70,7 @@ public enum MigrationPlan {
         // in exactly one place, so a generated subclass would add surface without value.
         entity.managedObjectClassName = NSStringFromClass(NSManagedObject.self)
 
-        entity.properties = [
+        var properties: [NSAttributeDescription] = [
             attribute(TaskEntityKey.id, .UUIDAttributeType, optional: false),
             attribute(TaskEntityKey.title, .stringAttributeType, optional: false, defaultValue: ""),
             attribute(TaskEntityKey.notes, .stringAttributeType, optional: true),
@@ -76,6 +87,19 @@ public enum MigrationPlan {
             attribute(TaskEntityKey.alertCount, .integer64AttributeType, optional: false, defaultValue: 0),
             attribute(TaskEntityKey.lastInteractionAt, .dateAttributeType, optional: false),
         ]
+
+        if includeColor {
+            properties.append(
+                attribute(
+                    TaskEntityKey.colorRaw,
+                    .stringAttributeType,
+                    optional: true,
+                    defaultValue: TaskColor.fallback.rawValue
+                )
+            )
+        }
+
+        entity.properties = properties
 
         // Enforced by the store, not just by application code, so a crash mid-write or a second
         // process cannot produce two rows for one task.

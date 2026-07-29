@@ -22,6 +22,8 @@ public struct DailyTask: Identifiable, Equatable, Sendable {
     public var sessionStartedAt: Date?
     public var completedAt: Date?
     public var status: TaskStatus
+    /// User-assigned colour label. Identity only; it never conveys state on its own.
+    public var color: TaskColor
     public var remindersEnabled: Bool
     public var idleDetectionEnabled: Bool
     public var alertCount: Int
@@ -39,6 +41,7 @@ public struct DailyTask: Identifiable, Equatable, Sendable {
         sessionStartedAt: Date? = nil,
         completedAt: Date? = nil,
         status: TaskStatus = .upcoming,
+        color: TaskColor = .fallback,
         remindersEnabled: Bool = true,
         idleDetectionEnabled: Bool = true,
         alertCount: Int = 0,
@@ -55,6 +58,7 @@ public struct DailyTask: Identifiable, Equatable, Sendable {
         self.sessionStartedAt = sessionStartedAt
         self.completedAt = completedAt
         self.status = status
+        self.color = color
         self.remindersEnabled = remindersEnabled
         self.idleDetectionEnabled = idleDetectionEnabled
         self.alertCount = alertCount
