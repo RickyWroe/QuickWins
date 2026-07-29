@@ -14,7 +14,7 @@ Run the automated suite with:
 ./Scripts/test.sh
 ```
 
-Last executed: **148 tests in 14 suites, all passing.**
+Last executed: **156 tests in 15 suites, all passing.**
 
 ---
 
@@ -108,6 +108,11 @@ Last executed: **148 tests in 14 suites, all passing.**
 | M8 | Colour picker in the editor | **[PENDING]** | Selection is marked with a ring **and** a checkmark, not colour alone. |
 | M9 | Migration from a pre-colour database | **[AUTO]** + **[VERIFIED]** | *A v1 store opens under v2 with its tasks intact and no data loss*. Also verified live: the running app logged `Store schema 1 opened by app schema 2` against a real v1 database and the existing task survived. |
 | M10 | Unknown or missing colour value | **[AUTO]** | *A row written before colours existed reads back as the neutral fallback*; *An unrecognised colour name falls back rather than failing the read*. |
+| M12 | Resting message appears after 15s | **[VERIFIED]** | Observed live: the pointer parked, and ~14 s later the HUD window grew from 69×28 to 107×45 and rendered "Small steps are still steps." under the timer. It held for the rest of the still period. |
+| M13 | Message clears on movement | **[VERIFIED]** | Same run: the moment the pointer moved, the window shrank back to 69×28 and repositioned. |
+| M14 | One message per rest, not a rotation | **[VERIFIED]** | The window stayed at 107×45 across three consecutive 2 s samples without changing size, i.e. no new message was swapped in. |
+| M15 | Messages respect the ten-word cap | **[AUTO]** | *Every message is at most ten words*; *No message claims to know how the work is going*. |
+| M16 | No message while paused, idle, or snoozed | **[PENDING]** | Pause the task and rest the pointer — nothing should appear. Then leave the Mac untouched past the 3-minute idle threshold; any visible message must disappear as the indicator changes. Gated by `AppModel.canShowHUDMessage`. |
 | M11 | Both hot keys work together | **[VERIFIED]** | Both `⌥Space` and `⌥Q` register at launch. This regressed once — see the 1.1.0 changelog — and the log is the check. |
 
 ## Menu bar and settings

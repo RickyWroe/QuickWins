@@ -237,9 +237,27 @@ time and nothing else — for when you want to check in without opening the pane
 - Hides itself after a few seconds (configurable, or set to stay open).
 - A pause glyph sits inside the dot when the timer is stopped, so run state is never conveyed by
   colour alone.
+- **Rests with a short message.** Once the pointer has been still for 15 seconds the capsule grows
+  to show one short line, and holds it until you move again.
 
 Turn **Follow the pointer** off in Settings and it reverts to being placed once where the pointer
 was, which makes it clickable — clicking then opens the full panel.
+
+### Resting messages
+
+A still pointer is not the same as a stopped person — if you are typing, your cursor never moves,
+which is exactly when you are most focused. So the messages are built to be quiet:
+
+- **One per rest, not a rotation.** A message appears once the pointer has been still, and stays
+  put until you move. You do not get a new one every 15 seconds.
+- **Only while a task is actually running.** Nothing appears when the timer is paused, when no
+  task is active, or while alerts are snoozed.
+- **Never at the same time as an accountability prompt.** The moment idle detection stops reading
+  calm, the message disappears, so the app never encourages you and asks "still working?" at once.
+- **They never claim to know how it is going.** QuickWins cannot see your work, so no message
+  congratulates an outcome — a test enforces this, along with the ten-word ceiling.
+
+Both the delay and the whole feature are in Settings › General › Mini HUD.
 
 Each task carries one of eight colours, handed out in rotation as tasks are created so a day's
 list is legible immediately. Change one from the task editor, the row's context menu, or the

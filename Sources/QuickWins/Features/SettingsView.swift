@@ -89,6 +89,20 @@ private struct GeneralSettingsTab: View {
                 Toggle("Follow the pointer", isOn: binding(\.miniHUDFollowsPointer))
                     .onChange(of: model.settings.miniHUDFollowsPointer) { _, _ in applyHUDSettings() }
 
+                Toggle("Show a short message when the pointer rests", isOn: binding(\.miniHUDMessagesEnabled))
+
+                LabeledContent("Message after") {
+                    Stepper(value: Binding(
+                        get: { model.settings.miniHUDMessageDelay },
+                        set: { value in model.updateSettings { $0.miniHUDMessageDelay = value } }
+                    ), in: 5...300, step: 5) {
+                        Text("\(Int(model.settings.miniHUDMessageDelay))s")
+                            .font(.callout.monospacedDigit())
+                            .frame(minWidth: 76, alignment: .trailing)
+                    }
+                }
+                .disabled(!model.settings.miniHUDMessagesEnabled)
+
                 LabeledContent("Hide after") {
                     Stepper(value: Binding(
                         get: { model.settings.miniHUDAutoHideSeconds },
@@ -112,7 +126,7 @@ private struct GeneralSettingsTab: View {
             } header: {
                 Text("Mini HUD")
             } footer: {
-                Text("A small capsule beside the pointer showing the current task's colour and elapsed time. Kept on screen, the shortcut becomes a show/hide switch and the choice survives a relaunch; switch that off and the shortcut becomes a peek that hides itself. While it follows the pointer it is click-through, so it never intercepts a click meant for what is underneath — turn following off if you would rather click it to open the full panel. Avoid a plain Shift combination for the shortcut: a global shortcut consumes the key everywhere, so Shift+Q would stop you typing a capital Q.")
+                Text("A small capsule beside the pointer showing the current task's colour and elapsed time. Kept on screen, the shortcut becomes a show/hide switch and the choice survives a relaunch; switch that off and the shortcut becomes a peek that hides itself. Resting messages appear once the pointer has been still, and only while a task is actually running — a still pointer often just means you are typing, so one message appears and stays until you move rather than a new one every few seconds. While it follows the pointer the HUD is click-through, so it never intercepts a click meant for what is underneath. Avoid a plain Shift combination for the shortcut: a global shortcut consumes the key everywhere, so Shift+Q would stop you typing a capital Q.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

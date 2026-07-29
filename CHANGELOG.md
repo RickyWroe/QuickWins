@@ -12,6 +12,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Mini HUD.** A compact capsule beside the pointer showing the current task's colour and elapsed
   time, on `⌥Q` by default. It never takes keyboard focus and hides itself after a configurable
   delay.
+- **Resting messages in the HUD.** After the pointer has been still for a configurable 15 seconds,
+  the capsule grows to show one short line and holds it until the pointer moves. Shown only while
+  a task is running and while idle detection reads calm, so encouragement never collides with an
+  accountability prompt. Sixteen messages, each capped at ten words and none of them claiming to
+  know how the work is going; both constraints are enforced by tests.
 - **The HUD stays on screen by default**, restored at launch, with `⌥Q` and the menu-bar item
   acting as a show/hide switch whose state persists. *Keep the HUD on screen* can be switched off
   in Settings to get peek-and-auto-hide behaviour instead.

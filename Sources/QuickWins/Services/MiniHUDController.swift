@@ -129,6 +129,7 @@ final class MiniHUDController {
             panel.orderOut(nil)
             model.hudDidDisappear()
         }
+        model.hudMessage = nil
         if persist { persistVisibility(false) }
     }
 
@@ -196,10 +197,34 @@ final class MiniHUDController {
         timer.resume()
     }
 
+    /// Shows one encouragement per still period, held until the pointer moves again.
+    ///
+    /// Deliberately not a rotation on a timer: a new message every few seconds would be noise,
+    /// and a still cursor very often means the user is typing rather than gone.
+    private func updateMessage() {
+        guard let lastMovementAt else { return }
+        let stillFor = Date().timeIntervalSince(lastMovementAt)
+
+        guard model.canShowHUDMessage, stillFor >= model.settings.miniHUDMessageDelay else {
+            if model.hudMessage != nil { model.hudMessage = nil }
+            return
+        }
+        guard model.hudMessage == nil else { return }
+        model.hudMessage = MotivationalMessage.next(after: nil)
+        // The capsule grows to fit the message, so re-place it once SwiftUI has laid out.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let panel = self.panel, panel.isVisible else { return }
+            panel.layoutIfNeeded()
+            self.lastCursor = nil
+            self.reposition(panel)
+        }
+    }
+
     /// A mouse event means the pointer is live; go back to the fast cadence immediately.
     private func noteMovement() {
         guard isVisible else { return }
         lastMovementAt = Date()
+        if model.hudMessage != nil { model.hudMessage = nil }
         schedulePolling(fast: true)
         pollCursor()
     }
@@ -208,9 +233,12 @@ final class MiniHUDController {
         guard let panel, panel.isVisible else { return }
         if reposition(panel) {
             lastMovementAt = Date()
+            // Movement clears the message; the next still period earns a fresh one.
+            if model.hudMessage != nil { model.hudMessage = nil }
             schedulePolling(fast: true)
             return
         }
+        updateMessage()
         // Drop to the idle cadence once the pointer has been still for a moment.
         if isPollingFast, let lastMovementAt, Date().timeIntervalSince(lastMovementAt) > Self.quietPeriod {
             schedulePolling(fast: false)

@@ -15,32 +15,47 @@ struct MiniHUDView: View {
     let openPanel: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var task: DailyTask? { model.focusTask }
+    private var message: String? { model.hudMessage }
 
     var body: some View {
-        HStack(spacing: 7) {
-            indicator
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 7) {
+                indicator
 
-            if let task {
-                Text(FocusTimeFormatter.clock(task.elapsedFocus(at: model.now)))
-                    .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
-                    .contentTransition(.numericText())
-                    .foregroundStyle(task.status == .active ? .primary : .secondary)
-            } else {
-                Text("No task")
-                    .font(.system(size: 12, weight: .medium))
+                if let task {
+                    Text(FocusTimeFormatter.clock(task.elapsedFocus(at: model.now)))
+                        .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
+                        .contentTransition(.numericText())
+                        .foregroundStyle(task.status == .active ? .primary : .secondary)
+                } else {
+                    Text("No task")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let message {
+                Text(message)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                    // Keeps a longer line to two rows rather than one very wide capsule sitting
+                    // beside the pointer.
+                    .frame(maxWidth: 170, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(hudBackground, in: Capsule())
+        .background(hudBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
-            Capsule().strokeBorder(Color.primary.opacity(isHovering ? 0.22 : 0.1))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.primary.opacity(isHovering ? 0.22 : 0.1))
         )
-        .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
-        .contentShape(Capsule())
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: message)
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onHover { isHovering = isInteractive && $0 }
         .onTapGesture { if isInteractive { openPanel() } }
         .help(isInteractive ? "Open the QuickWins panel" : "")
@@ -83,12 +98,14 @@ struct MiniHUDView: View {
 
     private var accessibilityLabel: String {
         guard let task else { return "QuickWins, no task in focus" }
-        return [
+        var parts = [
             task.title,
             task.color.displayName,
             task.status.accessibilityDescription,
             FocusTimeFormatter.spoken(task.elapsedFocus(at: model.now)) + " elapsed",
-        ].joined(separator: ", ")
+        ]
+        if let message { parts.append(message) }
+        return parts.joined(separator: ", ")
     }
 }
 

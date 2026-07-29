@@ -77,6 +77,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var miniHUDVisible: Bool
     /// Seconds before the HUD fades on its own. Ignored while `miniHUDAlwaysVisible` is set.
     public var miniHUDAutoHideSeconds: TimeInterval
+    /// Shows a short encouragement in the HUD once the pointer has been parked.
+    public var miniHUDMessagesEnabled: Bool
+    /// How long the pointer must be still before a message appears.
+    public var miniHUDMessageDelay: TimeInterval
     /// Keeps the HUD glued to the pointer instead of placing it once where the pointer was.
     ///
     /// While following, the HUD is click-through: a window that moves with the cursor cannot be
@@ -98,6 +102,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDVisible: true,
         miniHUDAutoHideSeconds: 5,
         miniHUDFollowsPointer: true,
+        miniHUDMessagesEnabled: true,
+        miniHUDMessageDelay: 15,
         hasSeenWelcome: false
     )
 
@@ -115,6 +121,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDVisible: Bool,
         miniHUDAutoHideSeconds: TimeInterval,
         miniHUDFollowsPointer: Bool,
+        miniHUDMessagesEnabled: Bool,
+        miniHUDMessageDelay: TimeInterval,
         hasSeenWelcome: Bool
     ) {
         self.accountability = accountability
@@ -130,6 +138,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.miniHUDVisible = miniHUDVisible
         self.miniHUDAutoHideSeconds = miniHUDAutoHideSeconds
         self.miniHUDFollowsPointer = miniHUDFollowsPointer
+        self.miniHUDMessagesEnabled = miniHUDMessagesEnabled
+        self.miniHUDMessageDelay = miniHUDMessageDelay
         self.hasSeenWelcome = hasSeenWelcome
     }
 
@@ -150,6 +160,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDVisible = (try? container.decode(Bool.self, forKey: .miniHUDVisible)) ?? fallback.miniHUDVisible
         miniHUDAutoHideSeconds = (try? container.decode(TimeInterval.self, forKey: .miniHUDAutoHideSeconds)) ?? fallback.miniHUDAutoHideSeconds
         miniHUDFollowsPointer = (try? container.decode(Bool.self, forKey: .miniHUDFollowsPointer)) ?? fallback.miniHUDFollowsPointer
+        miniHUDMessagesEnabled = (try? container.decode(Bool.self, forKey: .miniHUDMessagesEnabled)) ?? fallback.miniHUDMessagesEnabled
+        miniHUDMessageDelay = (try? container.decode(TimeInterval.self, forKey: .miniHUDMessageDelay)) ?? fallback.miniHUDMessageDelay
         hasSeenWelcome = (try? container.decode(Bool.self, forKey: .hasSeenWelcome)) ?? fallback.hasSeenWelcome
     }
 
@@ -157,6 +169,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         var copy = self
         copy.accountability = accountability.sanitized()
         copy.miniHUDAutoHideSeconds = min(max(0, miniHUDAutoHideSeconds), 60)
+        copy.miniHUDMessageDelay = min(max(5, miniHUDMessageDelay), 300)
         return copy
     }
 }

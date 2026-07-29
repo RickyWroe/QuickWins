@@ -22,6 +22,8 @@ final class AppModel: ObservableObject {
     /// Suppresses click-outside dismissal while a sheet owns the interaction.
     @Published var isEditingModally = false
     @Published var showStorageWarning: Bool
+    /// Encouragement shown in the HUD while the pointer is parked. Nil when nothing should show.
+    @Published var hudMessage: String?
 
     private var coordinator: TaskCoordinator { environment.coordinator }
     private let ticker: TickScheduling
@@ -98,7 +100,18 @@ final class AppModel: ObservableObject {
 
     func hudDidDisappear() {
         tickingReason.remove(.hudVisible)
+        hudMessage = nil
         syncTicker()
+    }
+
+    /// A message is only appropriate while a task is genuinely running and the accountability
+    /// system is calm. Encouraging someone the app is about to ask "still working?" would be
+    /// contradictory, and encouraging them when nothing is running would be meaningless.
+    var canShowHUDMessage: Bool {
+        settings.miniHUDMessagesEnabled
+            && activeTask != nil
+            && accountabilityLevel == .calm
+            && !isSnoozed
     }
 
     /// Called when the machine wakes; a long sleep may have invalidated the running session.
