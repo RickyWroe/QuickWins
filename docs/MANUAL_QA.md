@@ -4,6 +4,9 @@ Scenarios are marked:
 
 - **[AUTO]** — covered by an automated test that has been executed. The test name is given.
 - **[VERIFIED]** — checked by hand in a running build, with the observed result recorded.
+- **[CONFIRMED]** — exercised and confirmed by the repository owner in normal use. Recorded on
+  their word rather than from an observed measurement, which is why it is kept distinct from
+  **[VERIFIED]**.
 - **[PENDING]** — needs a person. A procedure is given. **Not yet performed.**
 
 Nothing below is claimed as tested unless it was actually run.
@@ -112,7 +115,7 @@ Last executed: **156 tests in 15 suites, all passing.**
 | M13 | Message clears on movement | **[VERIFIED]** | Same run: the moment the pointer moved, the window shrank back to 69×28 and repositioned. |
 | M14 | One message per rest, not a rotation | **[VERIFIED]** | The window stayed at 107×45 across three consecutive 2 s samples without changing size, i.e. no new message was swapped in. |
 | M15 | Messages respect the ten-word cap | **[AUTO]** | *Every message is at most ten words*; *No message claims to know how the work is going*. |
-| M16 | No message while paused, idle, or snoozed | **[PENDING]** | Pause the task and rest the pointer — nothing should appear. Then leave the Mac untouched past the 3-minute idle threshold; any visible message must disappear as the indicator changes. Gated by `AppModel.canShowHUDMessage`. |
+| M16 | No message while paused, idle, or snoozed | **[CONFIRMED]** 2026-07-29 | Confirmed by the owner in normal use: no resting message appears while the task is paused, and a visible one clears once idle detection stops reading calm. Gated by `AppModel.canShowHUDMessage`. To re-check: pause the task and rest the pointer, then leave the Mac untouched past the 3-minute idle threshold. |
 | M11 | Both hot keys work together | **[VERIFIED]** | Both `⌥Space` and `⌥Q` register at launch. This regressed once — see the 1.1.0 changelog — and the log is the check. |
 
 ## Menu bar and settings
