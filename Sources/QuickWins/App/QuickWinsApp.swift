@@ -9,7 +9,8 @@ struct QuickWinsApp: App {
             MenuBarContent(
                 model: appDelegate.model,
                 openPanel: { appDelegate.openPanel() },
-                toggleHUD: { appDelegate.toggleHUD() }
+                toggleHUD: { appDelegate.toggleHUD() },
+                hudIsVisible: appDelegate.model.settings.miniHUDVisible
             )
         } label: {
             MenuBarLabel(model: appDelegate.model)
@@ -20,7 +21,8 @@ struct QuickWinsApp: App {
                 model: appDelegate.model,
                 shortcutError: appDelegate.currentShortcutError,
                 hudShortcutError: appDelegate.currentHUDShortcutError,
-                applyShortcut: { appDelegate.applyShortcut() }
+                applyShortcut: { appDelegate.applyShortcut() },
+                applyHUDSettings: { appDelegate.applyHUDSettings() }
             )
         }
     }

@@ -14,7 +14,7 @@ Run the automated suite with:
 ./Scripts/test.sh
 ```
 
-Last executed: **146 tests in 14 suites, all passing.**
+Last executed: **148 tests in 14 suites, all passing.**
 
 ---
 
@@ -94,10 +94,12 @@ Last executed: **146 tests in 14 suites, all passing.**
 
 | # | Scenario | Status | Notes |
 |---|---|---|---|
-| M1 | ⌥Q shows the HUD beside the pointer | **[PENDING]** | Registration is **[VERIFIED]** — the unified log records `Registered global shortcut ⌥Q` at launch. Its appearance on screen still needs one keypress. |
+| M1 | HUD is on screen at launch, unprompted | **[VERIFIED]** | With no keypress, a 90×28 window at level 3 was present and captured, showing the colour dot and elapsed time. |
+| M1b | ⌥Q toggles the HUD off and on | **[PENDING]** | Registration is **[VERIFIED]** — the unified log records `Registered global shortcut ⌥Q` at launch — but the toggle itself needs a keypress. Expect the choice to survive a relaunch. |
 | M2 | HUD does not steal keyboard focus | **[PENDING]** | Start typing in another app, press ⌥Q, keep typing. The panel is created with `acceptsKey: false` and shown with `orderFrontRegardless`. |
 | M3 | HUD auto-hides | **[PENDING]** | Default 5 s; set to 0 in Settings for "stays open". |
-| M4 | HUD follows the pointer | **[VERIFIED]** | A harness driving the real `ScreenPositioning` code with a live `NSPanel`, sweeping the cursor with `CGWarpMouseCursorPosition`, recorded 27 repositions across 27 distinct positions with 0 placement mismatches and the panel fully on a screen at every sample, including screen-edge and menu-bar-overlap cases. |
+| M4 | HUD follows the pointer | **[VERIFIED]** | Two independent checks. A harness running the follow loop against a live `NSPanel` recorded 27 repositions across 27 distinct positions, 0 placement mismatches, fully on screen at every sample including edge and menu-bar cases. Then against the **running app**, reading its real window position out of the window server: 13 matches, 0 mismatches. Note `CGWarpMouseCursorPosition` emits no events, so that second run exercised the worst case — pure polling with the monitors never firing. |
+| M4d | Idle cost of an always-on HUD | **[VERIFIED]** | `top`, 16 samples, 100% = one core. HUD off: 2–4%. HUD on, pointer still: 2.3–3.6%. HUD on, pointer moving: ~4% typical, ~18% peak. The adaptive backoff makes a parked HUD free. |
 | M4b | HUD is click-through while following | **[PENDING]** | Press ⌥Q, then click a button underneath the HUD. The click must reach that button. `ignoresMouseEvents` is set whenever following is on. |
 | M4c | Clicking the HUD opens the panel with following off | **[PENDING]** | Settings › General › Mini HUD › turn off *Follow the pointer*, press ⌥Q, click the capsule. |
 | M5 | HUD shows the task colour and elapsed time | **[PENDING]** | A pause glyph sits inside the dot when stopped, so run state is not colour-only. |

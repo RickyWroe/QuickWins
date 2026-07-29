@@ -7,6 +7,7 @@ struct SettingsView: View {
     let shortcutError: String?
     let hudShortcutError: String?
     let applyShortcut: () -> Void
+    let applyHUDSettings: () -> Void
 
     var body: some View {
         TabView {
@@ -14,7 +15,8 @@ struct SettingsView: View {
                 model: model,
                 shortcutError: shortcutError,
                 hudShortcutError: hudShortcutError,
-                applyShortcut: applyShortcut
+                applyShortcut: applyShortcut,
+                applyHUDSettings: applyHUDSettings
             )
                 .tabItem { Label("General", systemImage: "gearshape") }
 
@@ -35,6 +37,7 @@ private struct GeneralSettingsTab: View {
     let shortcutError: String?
     let hudShortcutError: String?
     let applyShortcut: () -> Void
+    let applyHUDSettings: () -> Void
 
     @State private var launchAtLoginError: String?
 
@@ -80,7 +83,11 @@ private struct GeneralSettingsTab: View {
                     .disabled(!model.settings.miniHUDShortcutEnabled)
                 }
 
+                Toggle("Keep the HUD on screen", isOn: binding(\.miniHUDAlwaysVisible))
+                    .onChange(of: model.settings.miniHUDAlwaysVisible) { _, _ in applyHUDSettings() }
+
                 Toggle("Follow the pointer", isOn: binding(\.miniHUDFollowsPointer))
+                    .onChange(of: model.settings.miniHUDFollowsPointer) { _, _ in applyHUDSettings() }
 
                 LabeledContent("Hide after") {
                     Stepper(value: Binding(
@@ -94,6 +101,7 @@ private struct GeneralSettingsTab: View {
                             .frame(minWidth: 76, alignment: .trailing)
                     }
                 }
+                .disabled(model.settings.miniHUDAlwaysVisible)
 
                 if let hudShortcutError {
                     Label(hudShortcutError, systemImage: "exclamationmark.triangle.fill")
@@ -104,7 +112,7 @@ private struct GeneralSettingsTab: View {
             } header: {
                 Text("Mini HUD")
             } footer: {
-                Text("A small capsule beside the pointer showing the current task's colour and elapsed time. While it follows the pointer it is click-through, so it never intercepts a click meant for what is underneath; turn following off if you would rather click it to open the full panel. Avoid a plain Shift combination for the shortcut — a global shortcut consumes the key everywhere, so Shift+Q would stop you typing a capital Q.")
+                Text("A small capsule beside the pointer showing the current task's colour and elapsed time. Kept on screen, the shortcut becomes a show/hide switch and the choice survives a relaunch; switch that off and the shortcut becomes a peek that hides itself. While it follows the pointer it is click-through, so it never intercepts a click meant for what is underneath — turn following off if you would rather click it to open the full panel. Avoid a plain Shift combination for the shortcut: a global shortcut consumes the key everywhere, so Shift+Q would stop you typing a capital Q.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

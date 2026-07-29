@@ -69,7 +69,13 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// Opens the compact cursor HUD rather than the full panel.
     public var miniHUDShortcut: ShortcutBinding
     public var miniHUDShortcutEnabled: Bool
-    /// Seconds before the HUD fades on its own. Zero keeps it up until dismissed.
+    /// Keeps the HUD on screen indefinitely; the shortcut becomes a show/hide switch rather
+    /// than a peek. When false the HUD behaves as a glance and hides itself.
+    public var miniHUDAlwaysVisible: Bool
+    /// Whether the HUD is currently showing. Persisted so an always-on HUD comes back after a
+    /// relaunch, and so hiding it stays hidden.
+    public var miniHUDVisible: Bool
+    /// Seconds before the HUD fades on its own. Ignored while `miniHUDAlwaysVisible` is set.
     public var miniHUDAutoHideSeconds: TimeInterval
     /// Keeps the HUD glued to the pointer instead of placing it once where the pointer was.
     ///
@@ -88,6 +94,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         shortcutEnabled: true,
         miniHUDShortcut: .miniHUDDefault,
         miniHUDShortcutEnabled: true,
+        miniHUDAlwaysVisible: true,
+        miniHUDVisible: true,
         miniHUDAutoHideSeconds: 5,
         miniHUDFollowsPointer: true,
         hasSeenWelcome: false
@@ -103,6 +111,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         shortcutEnabled: Bool,
         miniHUDShortcut: ShortcutBinding,
         miniHUDShortcutEnabled: Bool,
+        miniHUDAlwaysVisible: Bool,
+        miniHUDVisible: Bool,
         miniHUDAutoHideSeconds: TimeInterval,
         miniHUDFollowsPointer: Bool,
         hasSeenWelcome: Bool
@@ -116,6 +126,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.shortcutEnabled = shortcutEnabled
         self.miniHUDShortcut = miniHUDShortcut
         self.miniHUDShortcutEnabled = miniHUDShortcutEnabled
+        self.miniHUDAlwaysVisible = miniHUDAlwaysVisible
+        self.miniHUDVisible = miniHUDVisible
         self.miniHUDAutoHideSeconds = miniHUDAutoHideSeconds
         self.miniHUDFollowsPointer = miniHUDFollowsPointer
         self.hasSeenWelcome = hasSeenWelcome
@@ -134,6 +146,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         shortcutEnabled = (try? container.decode(Bool.self, forKey: .shortcutEnabled)) ?? fallback.shortcutEnabled
         miniHUDShortcut = (try? container.decode(ShortcutBinding.self, forKey: .miniHUDShortcut)) ?? fallback.miniHUDShortcut
         miniHUDShortcutEnabled = (try? container.decode(Bool.self, forKey: .miniHUDShortcutEnabled)) ?? fallback.miniHUDShortcutEnabled
+        miniHUDAlwaysVisible = (try? container.decode(Bool.self, forKey: .miniHUDAlwaysVisible)) ?? fallback.miniHUDAlwaysVisible
+        miniHUDVisible = (try? container.decode(Bool.self, forKey: .miniHUDVisible)) ?? fallback.miniHUDVisible
         miniHUDAutoHideSeconds = (try? container.decode(TimeInterval.self, forKey: .miniHUDAutoHideSeconds)) ?? fallback.miniHUDAutoHideSeconds
         miniHUDFollowsPointer = (try? container.decode(Bool.self, forKey: .miniHUDFollowsPointer)) ?? fallback.miniHUDFollowsPointer
         hasSeenWelcome = (try? container.decode(Bool.self, forKey: .hasSeenWelcome)) ?? fallback.hasSeenWelcome

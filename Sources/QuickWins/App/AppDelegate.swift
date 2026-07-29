@@ -53,6 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.hudController.toggle()
         }
         applyShortcut()
+        // Restores an always-on HUD that the user left switched on.
+        hudController.restoreVisibility()
 
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -122,6 +124,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func toggleHUD() {
         hudController.toggle()
+    }
+
+    /// Called when a HUD-related preference changes so the change takes effect immediately.
+    func applyHUDSettings() {
+        hudController.applySettings()
     }
 
     @objc private func systemDidWake() {

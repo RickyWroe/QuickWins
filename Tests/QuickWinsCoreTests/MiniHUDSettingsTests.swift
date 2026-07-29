@@ -5,9 +5,11 @@ import Testing
 @Suite("Mini HUD settings")
 struct MiniHUDSettingsTests {
 
-    @Test("The HUD follows the pointer by default and is bound to a non-Shift shortcut")
+    @Test("The HUD is on screen by default, following the pointer, on a non-Shift shortcut")
     func defaults() {
         let settings = AppSettings.default
+        #expect(settings.miniHUDAlwaysVisible)
+        #expect(settings.miniHUDVisible)
         #expect(settings.miniHUDFollowsPointer)
         #expect(settings.miniHUDShortcutEnabled)
         #expect(settings.miniHUDAutoHideSeconds == 5)
@@ -41,14 +43,39 @@ struct MiniHUDSettingsTests {
         #expect(decoded.miniHUDShortcut.display == "⌃G")
     }
 
-    @Test("A settings blob from before the HUD existed defaults to following")
+    @Test("A settings blob from before the HUD existed picks up the new defaults")
     func olderBlobGetsTheNewDefaults() throws {
         let older = #"{"menuBarDisplay":"iconOnly","shortcutEnabled":true}"#
         let decoded = try JSONDecoder().decode(AppSettings.self, from: Data(older.utf8))
 
         #expect(decoded.menuBarDisplay == .iconOnly)
         #expect(decoded.miniHUDFollowsPointer)
+        #expect(decoded.miniHUDAlwaysVisible)
+        #expect(decoded.miniHUDVisible)
         #expect(decoded.miniHUDShortcut == ShortcutBinding.miniHUDDefault)
+    }
+
+    @Test("Switching the HUD off is remembered across a relaunch")
+    func hiddenStatePersists() throws {
+        var settings = AppSettings.default
+        settings.miniHUDVisible = false
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: data)
+
+        #expect(decoded.miniHUDAlwaysVisible)
+        #expect(!decoded.miniHUDVisible)
+    }
+
+    @MainActor
+    @Test("Toggling HUD visibility is written through to the settings store")
+    func visibilityIsPersistedByTheStore() {
+        let env = Fixture.coordinator()
+        #expect(env.settingsStore.load().miniHUDVisible)
+
+        env.coordinator.updateSettings { $0.miniHUDVisible = false }
+
+        #expect(!env.settingsStore.load().miniHUDVisible)
     }
 
     @Test("An absurd auto-hide value is clamped rather than stored")

@@ -4,14 +4,18 @@ import SwiftUI
 
 /// Shows and hides the compact cursor HUD.
 ///
-/// Unlike the full panel this never takes key focus and never activates the app, so pressing the
-/// shortcut mid-sentence does not interrupt typing. It closes itself after a few seconds, which
-/// is what makes it a glance rather than another window to manage.
+/// By default the HUD stays on screen until the user switches it off, and the shortcut is a
+/// show/hide switch rather than a peek. It never takes key focus and never activates the app, so
+/// pressing the shortcut mid-sentence does not interrupt typing.
 @MainActor
 final class MiniHUDController {
-    /// Roughly display rate. Fast enough that the HUD reads as attached to the pointer rather
-    /// than trailing it.
-    private static let followInterval: TimeInterval = 1.0 / 60.0
+    /// Cadence while the pointer is moving. Fast enough that the HUD reads as attached to it.
+    private static let activeInterval: TimeInterval = 1.0 / 30.0
+    /// Cadence once the pointer has been still. An always-on HUD spends most of its life here,
+    /// so this is what determines its resting cost.
+    private static let idleInterval: TimeInterval = 0.5
+    /// How long the pointer must be still before dropping to the idle cadence.
+    private static let quietPeriod: TimeInterval = 0.75
     /// Sub-pixel jitter is not worth a window-server round trip.
     private static let movementThreshold: CGFloat = 0.5
 
@@ -21,10 +25,14 @@ final class MiniHUDController {
 
     private var panel: FloatingPanel?
     private var autoHideTask: Task<Void, Never>?
+    private var globalMouseMonitor: Any?
+    private var localMouseMonitor: Any?
     private var followTimer: DispatchSourceTimer?
+    private var isPollingFast = false
+    private var lastMovementAt: Date?
     private var lastCursor: CGPoint?
-    /// Size at the last placement, so the timer only re-reads the frame when it actually changes.
     private var lastSize: CGSize = .zero
+    private var panelIsInteractive: Bool?
 
     init(model: AppModel, logger: DiagnosticLogging, openPanel: @escaping () -> Void) {
         self.model = model
@@ -42,81 +50,181 @@ final class MiniHUDController {
     deinit {
         NotificationCenter.default.removeObserver(self)
         autoHideTask?.cancel()
+        if let globalMouseMonitor { NSEvent.removeMonitor(globalMouseMonitor) }
+        if let localMouseMonitor { NSEvent.removeMonitor(localMouseMonitor) }
         followTimer?.cancel()
     }
 
     var isVisible: Bool { panel?.isVisible == true }
 
-    func toggle() {
-        isVisible ? hide() : show()
+    // MARK: - Lifecycle
+
+    /// Restores the HUD at launch when the user left it on.
+    func restoreVisibility() {
+        guard model.settings.miniHUDAlwaysVisible, model.settings.miniHUDVisible else { return }
+        show(persist: false)
     }
 
-    func show() {
+    /// The shortcut and the menu item both land here, and the choice sticks across relaunches.
+    func toggle() {
+        isVisible ? hide(persist: true) : show(persist: true)
+    }
+
+    /// Re-applies the settings that change how the HUD behaves rather than what it shows.
+    func applySettings() {
+        let settings = model.settings
+
+        if settings.miniHUDAlwaysVisible {
+            autoHideTask?.cancel()
+            autoHideTask = nil
+            if settings.miniHUDVisible && !isVisible {
+                show(persist: false)
+                return
+            }
+        }
+
+        guard isVisible, let panel else { return }
+        // Follow mode is baked into the panel's interactivity, so a change rebuilds it.
+        if panelIsInteractive == settings.miniHUDFollowsPointer {
+            hide(persist: false)
+            show(persist: false)
+            return
+        }
+        panel.ignoresMouseEvents = settings.miniHUDFollowsPointer
+        settings.miniHUDFollowsPointer ? startFollowing() : stopFollowing()
+        scheduleAutoHide()
+    }
+
+    func show(persist: Bool = true) {
         let follows = model.settings.miniHUDFollowsPointer
         let panel = ensurePanel(followsPointer: follows)
 
         // A window glued to the pointer must not intercept clicks meant for what is underneath.
         panel.ignoresMouseEvents = follows
+        // A drop shadow has to be recomputed by the window server on every move; at pointer
+        // speed that dominates the cost of following. The capsule's border carries the edge.
+        panel.hasShadow = !follows
 
         lastCursor = nil
         reposition(panel)
-
-        // `orderFrontRegardless` rather than `makeKeyAndOrderFront`: the HUD appears without
-        // pulling activation away from the app the user is in.
         panel.orderFrontRegardless()
         model.hudDidAppear()
 
         if follows { startFollowing() } else { stopFollowing() }
         scheduleAutoHide()
+
+        if persist { persistVisibility(true) }
     }
 
-    func hide() {
+    func hide(persist: Bool = true) {
         autoHideTask?.cancel()
         autoHideTask = nil
         stopFollowing()
-        guard let panel, panel.isVisible else { return }
-        panel.orderOut(nil)
-        model.hudDidDisappear()
+        if let panel, panel.isVisible {
+            panel.orderOut(nil)
+            model.hudDidDisappear()
+        }
+        if persist { persistVisibility(false) }
+    }
+
+    private func persistVisibility(_ visible: Bool) {
+        guard model.settings.miniHUDVisible != visible else { return }
+        model.updateSettings { $0.miniHUDVisible = visible }
     }
 
     // MARK: - Following
 
+    /// Tracking polls the cursor, at a cadence that adapts to whether it is moving.
+    ///
+    /// Mouse monitors alone are not enough: a cursor can move without this process seeing an
+    /// event — `CGWarpMouseCursorPosition` generates none at all, and a global monitor only
+    /// observes events delivered to other applications. Polling is therefore the source of
+    /// truth, and the monitors exist only to snap back to the fast cadence the instant the
+    /// pointer stirs. While the pointer is still the timer drops to twice a second, which is
+    /// what keeps an all-day HUD cheap.
     private func startFollowing() {
         stopFollowing()
-        let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(
-            deadline: .now() + Self.followInterval,
-            repeating: Self.followInterval,
-            leeway: .milliseconds(2)
-        )
-        timer.setEventHandler { [weak self] in
-            guard let self, let panel = self.panel, panel.isVisible else { return }
-            self.reposition(panel)
+
+        let mask: NSEvent.EventTypeMask = [
+            .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged, .scrollWheel,
+        ]
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] _ in
+            self?.noteMovement()
         }
-        followTimer = timer
-        timer.resume()
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+            self?.noteMovement()
+            return event
+        }
+
+        lastMovementAt = Date()
+        schedulePolling(fast: true)
     }
 
     private func stopFollowing() {
+        if let globalMouseMonitor { NSEvent.removeMonitor(globalMouseMonitor) }
+        if let localMouseMonitor { NSEvent.removeMonitor(localMouseMonitor) }
+        globalMouseMonitor = nil
+        localMouseMonitor = nil
         followTimer?.setEventHandler(handler: nil)
         followTimer?.cancel()
         followTimer = nil
+        isPollingFast = false
+        lastMovementAt = nil
         lastCursor = nil
     }
 
-    // MARK: - Placement
+    private func schedulePolling(fast: Bool) {
+        guard isPollingFast != fast || followTimer == nil else { return }
+        followTimer?.setEventHandler(handler: nil)
+        followTimer?.cancel()
+
+        let interval = fast ? Self.activeInterval : Self.idleInterval
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(
+            deadline: .now() + interval,
+            repeating: interval,
+            leeway: fast ? .milliseconds(2) : .milliseconds(150)
+        )
+        timer.setEventHandler { [weak self] in self?.pollCursor() }
+        followTimer = timer
+        isPollingFast = fast
+        timer.resume()
+    }
+
+    /// A mouse event means the pointer is live; go back to the fast cadence immediately.
+    private func noteMovement() {
+        guard isVisible else { return }
+        lastMovementAt = Date()
+        schedulePolling(fast: true)
+        pollCursor()
+    }
+
+    private func pollCursor() {
+        guard let panel, panel.isVisible else { return }
+        if reposition(panel) {
+            lastMovementAt = Date()
+            schedulePolling(fast: true)
+            return
+        }
+        // Drop to the idle cadence once the pointer has been still for a moment.
+        if isPollingFast, let lastMovementAt, Date().timeIntervalSince(lastMovementAt) > Self.quietPeriod {
+            schedulePolling(fast: false)
+        }
+    }
 
     /// Places the HUD beside the pointer using the same geometry as the full panel, so it flips
     /// at screen edges and moves between displays as the pointer does.
-    private func reposition(_ panel: FloatingPanel) {
+    ///
+    /// Returns true when the pointer had actually moved, which is what drives the cadence.
+    @discardableResult
+    private func reposition(_ panel: FloatingPanel) -> Bool {
         let cursor = NSEvent.mouseLocation
 
-        // Skip the work entirely while the pointer is still.
         if let lastCursor,
            abs(cursor.x - lastCursor.x) < Self.movementThreshold,
            abs(cursor.y - lastCursor.y) < Self.movementThreshold,
            panel.frame.size == lastSize {
-            return
+            return false
         }
         lastCursor = cursor
 
@@ -125,7 +233,7 @@ final class MiniHUDController {
 
         let screens = NSScreen.screens
         guard let index = ScreenPositioning.screenIndex(containing: cursor, screens: screens.map(\.frame)) else {
-            return
+            return true
         }
 
         let placement = ScreenPositioning.place(
@@ -133,18 +241,24 @@ final class MiniHUDController {
             panelSize: size,
             visibleFrame: screens[index].visibleFrame
         )
-        guard placement.origin != panel.frame.origin else { return }
-        panel.setFrameOrigin(placement.origin)
+        if placement.origin != panel.frame.origin {
+            panel.setFrameOrigin(placement.origin)
+        }
+        return true
     }
 
     private func scheduleAutoHide() {
         autoHideTask?.cancel()
+        autoHideTask = nil
+        // An always-on HUD has no business hiding itself.
+        guard !model.settings.miniHUDAlwaysVisible else { return }
         let seconds = model.settings.miniHUDAutoHideSeconds
         guard seconds > 0 else { return }
         autoHideTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            self?.hide()
+            // An auto-hide is the HUD getting out of the way, not the user switching it off.
+            self?.hide(persist: false)
         }
     }
 
@@ -156,7 +270,7 @@ final class MiniHUDController {
 
         let rootView = MiniHUDView(model: model, isInteractive: !followsPointer) { [weak self] in
             guard let self else { return }
-            self.hide()
+            if !self.model.settings.miniHUDAlwaysVisible { self.hide(persist: false) }
             self.openPanel()
         }
         let hosting = NSHostingController(rootView: rootView)
@@ -173,8 +287,6 @@ final class MiniHUDController {
         self.panelIsInteractive = !followsPointer
         return panel
     }
-
-    private var panelIsInteractive: Bool?
 
     @objc private func screenParametersChanged() {
         guard let panel, panel.isVisible else { return }

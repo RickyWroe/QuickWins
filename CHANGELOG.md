@@ -12,6 +12,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Mini HUD.** A compact capsule beside the pointer showing the current task's colour and elapsed
   time, on `⌥Q` by default. It never takes keyboard focus and hides itself after a configurable
   delay.
+- **The HUD stays on screen by default**, restored at launch, with `⌥Q` and the menu-bar item
+  acting as a show/hide switch whose state persists. *Keep the HUD on screen* can be switched off
+  in Settings to get peek-and-auto-hide behaviour instead.
 - **The HUD follows the pointer**, flipping at screen edges and crossing between displays. While
   following it is click-through, so it never intercepts a click meant for what is underneath —
   a window attached to the cursor could not be clicked anyway. Turn *Follow the pointer* off to
@@ -24,6 +27,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   real v1 store.
 - A second configurable global shortcut, with its own conflict reporting in Settings.
 - `Show mini HUD` in the menu-bar menu.
+
+### Performance
+
+- The follow loop adapts its cadence: 30 Hz while the pointer moves, 2 Hz once it has been still.
+  Measured with `top` (100% = one core), an on-screen HUD with a still pointer costs 2.3–3.6%,
+  indistinguishable from the 2–4% baseline with it switched off.
+- The window shadow is disabled and the material backdrop replaced with a flat fill while
+  following. Both were measured; the shadow made no difference and the material only a small one,
+  so the remaining cost is the window move itself.
 
 ### Fixed
 

@@ -143,8 +143,25 @@ and dispatches by hot-key id. Installing per service instance silently breaks ev
 the first.
 
 **The ticker only runs when something depends on it.** No active task, no visible panel and no
-visible HUD means no timer at all. The HUD's 60 Hz follow timer is separate and runs only while
-the HUD is on screen, skipping the window-server call entirely when the pointer has not moved.
+visible HUD means no timer at all.
+
+**The HUD's follow loop adapts to whether the pointer is moving.** Mouse monitors alone are not
+enough — a cursor can move without this process seeing an event, and a warp generates none at all
+— so polling is the source of truth and the monitors exist only to snap back to the fast cadence
+the moment the pointer stirs. Moving it: 30 Hz. Still for three quarters of a second: 2 Hz. That
+matters because an always-on HUD spends most of its life parked. Measured on the machine this was
+built on, with `top`, where 100% is one core:
+
+| State | CPU |
+|---|---|
+| HUD off (baseline) | 2–4% |
+| HUD on, pointer still | 2.3–3.6% |
+| HUD on, pointer moving | ~4% typical, to ~18% during vigorous movement |
+
+At rest the HUD is indistinguishable from having it off. While following, the cost is the window
+move itself — measurably not the drop shadow (disabled while following) and only marginally the
+material backdrop (swapped for a flat fill while following, which also reads better over
+arbitrary content).
 
 ### Core Data instead of SwiftData
 
@@ -208,6 +225,9 @@ time and nothing else — for when you want to check in without opening the pane
  ●  34:18
 ```
 
+- **Stays on screen** until you switch it off with `⌥Q` or the menu-bar item, and that choice
+  survives a relaunch. Turn *Keep the HUD on screen* off in Settings and the shortcut becomes a
+  peek that hides itself after a few seconds instead.
 - **Follows the pointer**, staying 12 points down and to the right of it, flipping at screen
   edges and moving between displays as you do.
 - **Click-through while following.** A window glued to the cursor cannot be clicked — you can

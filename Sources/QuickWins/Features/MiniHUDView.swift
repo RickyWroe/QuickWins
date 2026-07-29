@@ -35,7 +35,7 @@ struct MiniHUDView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(.regularMaterial, in: Capsule())
+        .background(hudBackground, in: Capsule())
         .overlay(
             Capsule().strokeBorder(Color.primary.opacity(isHovering ? 0.22 : 0.1))
         )
@@ -48,6 +48,13 @@ struct MiniHUDView: View {
         .accessibilityLabel(accessibilityLabel)
         .accessibilityAddTraits(isInteractive ? [.isButton] : [])
         .accessibilityHint(isInteractive ? "Opens the full task panel" : "")
+    }
+
+    /// A live material backdrop must be re-blurred against whatever is behind it every time the
+    /// window moves, which is ruinous at pointer speed. While following, a flat translucent fill
+    /// is used instead; when parked, the material returns.
+    private var hudBackground: AnyShapeStyle {
+        isInteractive ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor).opacity(0.92))
     }
 
     /// The task's colour, with the run state carried by a glyph rather than by the colour — the
