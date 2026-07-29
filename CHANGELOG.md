@@ -5,6 +5,39 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] — 2026-07-29
+
+### Fixed
+
+- **The app crashed repeatedly while the mini HUD was on screen.** Four `EXC_BAD_ACCESS` /
+  "stack size exceeded due to excessive recursion" crashes in normal use, with the faulting stack
+  running `MiniHUDController.reposition` → `-[NSWindow _setFrameCommon:display:fromServer:]` →
+  `displayIfNeeded` → view layout → `NSISEngine` and back again.
+
+  Setting a window frame runs a synchronous layout pass. Because the HUD's hosting controller was
+  configured with `sizingOptions = [.preferredContentSize]`, that layout could resize the window,
+  which re-entered the frame change — move, layout, resize, move, until the stack was exhausted.
+  Moving the window at pointer rate made it near-certain, and a resting message resizing the
+  capsule made it worse.
+
+  The window is now sized explicitly by the controller and never by SwiftUI layout, measured with
+  `sizeThatFits(in:)` against a fixed proposal rather than the view's own `fittingSize` — feeding
+  the latter back in as the window size makes each pass measure a smaller view, ratcheting the HUD
+  down to nothing. A re-entrancy guard around every frame change backs this up.
+
+  Two earlier attempts did not fix it and are recorded here because the stack trace, not
+  reasoning, is what identified the cause: removing `layoutIfNeeded()` (a real hazard, and still
+  removed) and replacing a flexible `.frame(maxWidth:)` with a fixed width (also still in place).
+  Both were contributing hazards; neither was sufficient.
+
+### Changed
+
+- The resting message sits in a fixed-width block, so the HUD is a consistent size whenever a
+  message is showing rather than hugging each message's length. Predictable geometry is what keeps
+  the layout non-recursive.
+- The size-change animation on the HUD was removed; animating a window's content size fights
+  explicit sizing.
+
 ## [1.1.0] — 2026-07-29
 
 ### Added
@@ -127,5 +160,6 @@ Initial implementation.
 - Ships without an app icon, which needs Xcode's asset tooling.
 - Ad-hoc signed. Distribution to other Macs requires Developer ID signing and notarization.
 
+[1.1.1]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.1.1
 [1.1.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.1.0
 [1.0.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.0.0

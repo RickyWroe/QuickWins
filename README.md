@@ -145,6 +145,14 @@ the first.
 **The ticker only runs when something depends on it.** No active task, no visible panel and no
 visible HUD means no timer at all.
 
+**The HUD window is sized by the controller, never by SwiftUI layout.** Setting a window frame
+runs a synchronous layout pass; if that layout is allowed to resize the window, the resize
+re-enters the frame change and the two recurse until the stack is exhausted. With the window being
+moved at pointer rate, that is not a rare race — it crashed the app four times before the cause was
+found in the crash stack. `MiniHUDController.syncContentSize` is the single place the HUD's size is
+set, measured with `sizeThatFits(in:)` against a fixed proposal, and every frame change is wrapped
+in a re-entrancy guard.
+
 **The HUD's follow loop adapts to whether the pointer is moving.** Mouse monitors alone are not
 enough — a cursor can move without this process seeing an event, and a warp generates none at all
 — so polling is the source of truth and the monitors exist only to snap back to the fast cadence

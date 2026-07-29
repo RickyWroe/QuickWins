@@ -15,7 +15,6 @@ struct MiniHUDView: View {
     let openPanel: () -> Void
 
     @State private var isHovering = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var task: DailyTask? { model.focusTask }
     private var message: String? { model.hudMessage }
@@ -41,9 +40,13 @@ struct MiniHUDView: View {
                 Text(message)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                    // Keeps a longer line to two rows rather than one very wide capsule sitting
-                    // beside the pointer.
-                    .frame(maxWidth: 170, alignment: .leading)
+                    // Fixed width, never a flexible `maxWidth`. The hosting controller sizes the
+                    // window from this content, so a view that asks for "up to N points of
+                    // whatever is available" makes view layout and window resize depend on each
+                    // other and recurse until the stack is exhausted. That crashed the app four
+                    // times. A fixed width breaks the cycle and keeps a longer line to two rows
+                    // rather than one very wide capsule beside the pointer.
+                    .frame(width: 168, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -54,7 +57,6 @@ struct MiniHUDView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.primary.opacity(isHovering ? 0.22 : 0.1))
         )
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: message)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onHover { isHovering = isInteractive && $0 }
         .onTapGesture { if isInteractive { openPanel() } }

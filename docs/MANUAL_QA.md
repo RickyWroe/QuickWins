@@ -116,6 +116,7 @@ Last executed: **156 tests in 15 suites, all passing.**
 | M14 | One message per rest, not a rotation | **[VERIFIED]** | The window stayed at 107×45 across three consecutive 2 s samples without changing size, i.e. no new message was swapped in. |
 | M15 | Messages respect the ten-word cap | **[AUTO]** | *Every message is at most ten words*; *No message claims to know how the work is going*. |
 | M16 | No message while paused, idle, or snoozed | **[CONFIRMED]** 2026-07-29 | Confirmed by the owner in normal use: no resting message appears while the task is paused, and a visible one clears once idle detection stops reading calm. Gated by `AppModel.canShowHUDMessage`. To re-check: pause the task and rest the pointer, then leave the Mac untouched past the 3-minute idle threshold. |
+| M17 | HUD survives sustained message show/hide cycling | **[VERIFIED]** | Regression cover for the recursion crash. A stress harness drives 12 move-then-rest cycles, each forcing the capsule to grow for a message and shrink again, while the HUD follows the pointer. Before the fix this killed the app; after it, three consecutive rounds (36 cycles) with the process alive and zero crash reports. |
 | M11 | Both hot keys work together | **[VERIFIED]** | Both `⌥Space` and `⌥Q` register at launch. This regressed once — see the 1.1.0 changelog — and the log is the check. |
 
 ## Menu bar and settings

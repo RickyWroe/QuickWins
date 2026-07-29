@@ -100,8 +100,9 @@ final class FloatingPanelController {
     // MARK: - Positioning
 
     private func position(_ panel: FloatingPanel, besideCursor: Bool) {
-        // Force a layout pass so the frame reflects the current task count before placing it.
-        panel.layoutIfNeeded()
+        // No `layoutIfNeeded()`: the hosting controller sizes the window from its content, so
+        // forcing a window layout pass re-enters NSWindow's resize constraints and recurses
+        // until the stack is exhausted. The height falls back to a sane minimum instead.
         let size = CGSize(width: Self.panelWidth, height: max(panel.frame.height, 120))
 
         guard besideCursor else {

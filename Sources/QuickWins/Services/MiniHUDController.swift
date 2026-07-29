@@ -24,6 +24,11 @@ final class MiniHUDController {
     private let openPanel: () -> Void
 
     private var panel: FloatingPanel?
+    private var hosting: NSHostingController<MiniHUDView>?
+    /// Re-entrancy guard. Setting a window frame runs a synchronous layout pass, and layout that
+    /// resizes the window would land back here; without this the two recurse until the stack is
+    /// exhausted.
+    private var isAdjustingFrame = false
     private var autoHideTask: Task<Void, Never>?
     private var globalMouseMonitor: Any?
     private var localMouseMonitor: Any?
@@ -105,11 +110,11 @@ final class MiniHUDController {
         // speed that dominates the cost of following. The capsule's border carries the edge.
         panel.hasShadow = !follows
 
-        // Force a layout pass first: the hosting controller sizes the window from its SwiftUI
-        // content asynchronously, and placing a not-yet-sized window puts it in the wrong spot
-        // until the next poll corrects it.
-        panel.layoutIfNeeded()
-
+        // Deliberately no `layoutIfNeeded()` here. The hosting controller resizes the window to
+        // fit its SwiftUI content, so forcing a window layout pass re-enters layout through
+        // NSWindow's own resize constraints and recurses until the stack is exhausted. That
+        // crashed the app twice in normal use. `reposition` clamps a not-yet-sized window to a
+        // sane minimum, and the follow poll corrects the placement on its next tick.
         lastCursor = nil
         reposition(panel)
         panel.orderFrontRegardless()
@@ -212,9 +217,11 @@ final class MiniHUDController {
         guard model.hudMessage == nil else { return }
         model.hudMessage = MotivationalMessage.next(after: nil)
         // The capsule grows to fit the message, so re-place it once SwiftUI has laid out.
+        // Re-place on the next runloop, once SwiftUI has resized the window for the message.
+        // Never force that layout — see the note in `show`.
         DispatchQueue.main.async { [weak self] in
             guard let self, let panel = self.panel, panel.isVisible else { return }
-            panel.layoutIfNeeded()
+            self.syncContentSize()
             self.lastCursor = nil
             self.reposition(panel)
         }
@@ -229,8 +236,30 @@ final class MiniHUDController {
         pollCursor()
     }
 
+    /// Resizes the window to fit its content. The only place the HUD window's size is set.
+    ///
+    /// Measured with `sizeThatFits(in:)` against a generous proposal rather than the view's
+    /// `fittingSize`: the latter is derived from the view's current bounds, so feeding it back in
+    /// as the window size makes each pass measure a slightly smaller view and the HUD ratchets
+    /// down to nothing.
+    private func syncContentSize() {
+        guard let panel, let hosting, !isAdjustingFrame else { return }
+        let proposal = CGSize(width: 400, height: 200)
+        let fitting = hosting.sizeThatFits(in: proposal)
+        guard fitting.width > 1, fitting.height > 1 else { return }
+
+        let target = CGSize(width: ceil(fitting.width), height: ceil(fitting.height))
+        guard abs(target.width - panel.frame.width) > 0.5
+                || abs(target.height - panel.frame.height) > 0.5 else { return }
+
+        isAdjustingFrame = true
+        panel.setContentSize(target)
+        isAdjustingFrame = false
+    }
+
     private func pollCursor() {
         guard let panel, panel.isVisible else { return }
+        syncContentSize()
         if reposition(panel) {
             lastMovementAt = Date()
             // Movement clears the message; the next still period earns a fresh one.
@@ -251,6 +280,7 @@ final class MiniHUDController {
     /// Returns true when the pointer had actually moved, which is what drives the cadence.
     @discardableResult
     private func reposition(_ panel: FloatingPanel) -> Bool {
+        guard !isAdjustingFrame else { return false }
         let cursor = NSEvent.mouseLocation
 
         if let lastCursor,
@@ -275,7 +305,9 @@ final class MiniHUDController {
             visibleFrame: screens[index].visibleFrame
         )
         if placement.origin != panel.frame.origin {
+            isAdjustingFrame = true
             panel.setFrameOrigin(placement.origin)
+            isAdjustingFrame = false
         }
         return true
     }
@@ -307,7 +339,11 @@ final class MiniHUDController {
             self.openPanel()
         }
         let hosting = NSHostingController(rootView: rootView)
-        hosting.sizingOptions = [.preferredContentSize]
+        // The window is sized explicitly by `syncContentSize`, never by the hosting controller.
+        // With `.preferredContentSize`, moving the window triggers a layout pass, that layout
+        // resizes the window, and the resize re-enters the move — a loop that crashed the app
+        // repeatedly with "stack size exceeded due to excessive recursion".
+        hosting.sizingOptions = []
 
         let panel = FloatingPanel(
             contentRect: NSRect(x: 0, y: 0, width: 110, height: 30),
@@ -317,7 +353,9 @@ final class MiniHUDController {
         panel.onCancel = { [weak self] in self?.hide() }
 
         self.panel = panel
+        self.hosting = hosting
         self.panelIsInteractive = !followsPointer
+        syncContentSize()
         return panel
     }
 
