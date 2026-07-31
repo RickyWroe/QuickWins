@@ -17,7 +17,7 @@ Run the automated suite with:
 ./Scripts/test.sh
 ```
 
-Last executed: **156 tests in 15 suites, all passing.**
+Last executed: **228 tests in 22 suites, all passing.**
 
 ---
 
@@ -118,6 +118,25 @@ Last executed: **156 tests in 15 suites, all passing.**
 | M16 | No message while paused, idle, or snoozed | **[CONFIRMED]** 2026-07-29 | Confirmed by the owner in normal use: no resting message appears while the task is paused, and a visible one clears once idle detection stops reading calm. Gated by `AppModel.canShowHUDMessage`. To re-check: pause the task and rest the pointer, then leave the Mac untouched past the 3-minute idle threshold. |
 | M17 | HUD survives sustained message show/hide cycling | **[VERIFIED]** | Regression cover for the recursion crash. A stress harness drives 12 move-then-rest cycles, each forcing the capsule to grow for a message and shrink again, while the HUD follows the pointer. Before the fix this killed the app; after it, three consecutive rounds (36 cycles) with the process alive and zero crash reports. |
 | M11 | Both hot keys work together | **[VERIFIED]** | Both `⌥Space` and `⌥Q` register at launch. This regressed once — see the 1.1.0 changelog — and the log is the check. |
+
+## History, day types and the companion
+
+| # | Scenario | Status | Notes |
+|---|---|---|---|
+| H1 | Sessions recorded on every stopping path | **[AUTO]** | One test each for pause, complete, skip, switch, rollover; plus *Starting a task records nothing until it stops*. |
+| H2 | Midnight split | **[AUTO]** | *A session crossing midnight is split so each day gets its own share* — no time invented or lost. |
+| H3 | Stale heartbeat bounds the record | **[AUTO]** | *A stale session is recorded up to the heartbeat, not up to now*. |
+| H4 | History outlives its tasks | **[AUTO]** | *History outlives the tasks that produced it* — deleting the task leaves the sessions. |
+| H5 | Failed history write never blocks the task change | **[AUTO]** | The pause still happens and banked time is intact. |
+| H6 | Schema v3 migration | **[AUTO]** + **[VERIFIED]** | Tests migrate real v1 and v2 stores. Verified live: the running app logged `Store schema 2 opened by app schema 3` against the owner's real database and backfilled 3 sessions, with all tasks intact. |
+| H7 | Backfill runs once, flagged | **[AUTO]** | *Backfill runs once, not on every launch*; *Backfilled sessions never claim to know when the work happened*. |
+| H8 | Day types from pattern + override | **[AUTO]** | Weekend detection, override precedence, redundant marks not stored, reverting clears the override. |
+| H9 | Streaks skip days off | **[AUTO]** | *A day off between two worked days keeps the streak intact*; *A working day with nothing on it does break the streak*; *Today falling short does not end a streak yesterday earned*. |
+| H10 | Companion state ladder | **[AUTO]** | One state per accountability rung, plus *Asleep is the floor* and *No state description implies fault or damage*. |
+| H11 | Companion renders in the HUD | **[VERIFIED]** | Captured live: outline tortoise in the awake state beside `34:32`, HUD 82×28. |
+| H12 | Companion does not reintroduce the layout recursion | **[VERIFIED]** | 12 grow/shrink cycles with the pet present: process alive, 0 crash reports, HUD size stable. |
+| H13 | Companion sleep states on real hardware | **[PENDING]** | Start a task and leave the Mac untouched. Expect the tortoise to fill in and tilt at ~3, ~5 and ~10 minutes, and show `zzz` at ~15. Snooze it and expect the settled posture instead. |
+| H14 | Companion can be switched off | **[PENDING]** | Settings › General › *Show the companion*. Expect the plain colour dot to return. |
 
 ## Menu bar and settings
 

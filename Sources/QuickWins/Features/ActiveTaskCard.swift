@@ -37,10 +37,19 @@ struct ActiveTaskCard: View {
 
     private var header: some View {
         HStack(spacing: 6) {
-            Circle()
-                .fill(task.color.swatch)
-                .frame(width: 8, height: 8)
-                .accessibilityHidden(true)
+            if model.settings.petEnabled {
+                PetView(
+                    state: model.petState,
+                    color: task.color.swatch,
+                    vitality: model.petVitality,
+                    size: 18
+                )
+            } else {
+                Circle()
+                    .fill(task.color.swatch)
+                    .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
+            }
             Text("Current focus")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -181,6 +190,7 @@ struct ActiveTaskCard: View {
 
     private var accessibilitySummary: String {
         var parts = [task.color.displayName, task.status.accessibilityDescription, "elapsed \(FocusTimeFormatter.spoken(elapsed))"]
+        if model.settings.petEnabled { parts.append(model.petState.accessibilityDescription) }
         if let remaining = session.remaining(at: model.now), remaining > 0 {
             parts.append("\(FocusTimeFormatter.spoken(remaining)) remaining")
         }

@@ -90,6 +90,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// While following, the HUD is click-through: a window that moves with the cursor cannot be
     /// clicked, and one that accepted clicks would swallow them on whatever is underneath.
     public var miniHUDFollowsPointer: Bool
+    /// Shows the companion instead of a plain colour dot.
+    public var petEnabled: Bool
     /// Which weekdays count as working days, `Calendar` numbering with 1 for Sunday. Days
     /// outside this set are rest days: skipped in streaks, drawn distinctly in the graph.
     public var workingWeekdays: [Int]
@@ -115,6 +117,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDFollowsPointer: true,
         miniHUDMessagesEnabled: true,
         miniHUDMessageDelay: 15,
+        petEnabled: true,
         workingWeekdays: [2, 3, 4, 5, 6],
         dailyFocusGoalMinutes: 120,
         historyBackfilledAt: nil,
@@ -137,6 +140,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDFollowsPointer: Bool,
         miniHUDMessagesEnabled: Bool,
         miniHUDMessageDelay: TimeInterval,
+        petEnabled: Bool,
         workingWeekdays: [Int],
         dailyFocusGoalMinutes: Int,
         historyBackfilledAt: Date?,
@@ -157,6 +161,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.miniHUDFollowsPointer = miniHUDFollowsPointer
         self.miniHUDMessagesEnabled = miniHUDMessagesEnabled
         self.miniHUDMessageDelay = miniHUDMessageDelay
+        self.petEnabled = petEnabled
         self.workingWeekdays = workingWeekdays
         self.dailyFocusGoalMinutes = dailyFocusGoalMinutes
         self.historyBackfilledAt = historyBackfilledAt
@@ -182,6 +187,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDFollowsPointer = (try? container.decode(Bool.self, forKey: .miniHUDFollowsPointer)) ?? fallback.miniHUDFollowsPointer
         miniHUDMessagesEnabled = (try? container.decode(Bool.self, forKey: .miniHUDMessagesEnabled)) ?? fallback.miniHUDMessagesEnabled
         miniHUDMessageDelay = (try? container.decode(TimeInterval.self, forKey: .miniHUDMessageDelay)) ?? fallback.miniHUDMessageDelay
+        petEnabled = (try? container.decode(Bool.self, forKey: .petEnabled)) ?? fallback.petEnabled
         workingWeekdays = (try? container.decode([Int].self, forKey: .workingWeekdays)) ?? fallback.workingWeekdays
         dailyFocusGoalMinutes = (try? container.decode(Int.self, forKey: .dailyFocusGoalMinutes)) ?? fallback.dailyFocusGoalMinutes
         historyBackfilledAt = try? container.decodeIfPresent(Date.self, forKey: .historyBackfilledAt)

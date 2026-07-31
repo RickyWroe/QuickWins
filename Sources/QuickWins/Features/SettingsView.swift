@@ -83,6 +83,8 @@ private struct GeneralSettingsTab: View {
                     .disabled(!model.settings.miniHUDShortcutEnabled)
                 }
 
+                Toggle("Show the companion", isOn: binding(\.petEnabled))
+
                 Toggle("Keep the HUD on screen", isOn: binding(\.miniHUDAlwaysVisible))
                     .onChange(of: model.settings.miniHUDAlwaysVisible) { _, _ in applyHUDSettings() }
 

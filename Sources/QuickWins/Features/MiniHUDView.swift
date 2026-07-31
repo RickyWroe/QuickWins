@@ -78,7 +78,14 @@ struct MiniHUDView: View {
     /// dot says *which* task, the glyph says *whether it is running*.
     @ViewBuilder
     private var indicator: some View {
-        if let task {
+        if model.settings.petEnabled {
+            PetView(
+                state: model.petState,
+                color: task?.color.swatch ?? Color(nsColor: .systemGray),
+                vitality: model.petVitality,
+                size: 16
+            )
+        } else if let task {
             ZStack {
                 Circle()
                     .fill(task.color.swatch)
@@ -106,6 +113,8 @@ struct MiniHUDView: View {
             task.status.accessibilityDescription,
             FocusTimeFormatter.spoken(task.elapsedFocus(at: model.now)) + " elapsed",
         ]
+        // The pet is decorative to VoiceOver; its meaning is spoken here instead.
+        if model.settings.petEnabled { parts.append(model.petState.accessibilityDescription) }
         if let message { parts.append(message) }
         return parts.joined(separator: ", ")
     }

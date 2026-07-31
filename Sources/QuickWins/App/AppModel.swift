@@ -66,6 +66,25 @@ final class AppModel: ObservableObject {
     var notificationAuthorization: NotificationAuthorization { coordinator.notificationAuthorization }
     var sessionWasInterrupted: Bool { coordinator.sessionWasInterrupted }
 
+    /// The companion's state, derived from the same accountability ladder the alerts use, so it
+    /// inherits every suppression rule rather than inventing a second notion of inactivity.
+    var petState: PetState {
+        PetStateRules.state(
+            hasFocusTask: focusTask != nil,
+            isRunning: activeTask != nil,
+            idleDetectionEnabled: activeTask?.idleDetectionEnabled ?? true,
+            isSnoozed: isSnoozed,
+            level: accountabilityLevel
+        )
+    }
+
+    var petVitality: Double {
+        PetStateRules.vitality(
+            focusedSeconds: progress.focusedSeconds,
+            goalSeconds: settings.dailyFocusGoalSeconds
+        )
+    }
+
     /// The row the keyboard is on, defaulting to the focus task so arrow keys always have an anchor.
     var selectionTarget: DailyTask? {
         if let selectedTaskID, let match = tasks.first(where: { $0.id == selectedTaskID }) { return match }

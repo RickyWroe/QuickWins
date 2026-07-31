@@ -5,6 +5,41 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-07-31
+
+### Added
+
+- **Focus-session history (schema v3).** Every completed stretch of focus is recorded with its
+  own start, end and duration. A task only ever stored a running total, which says how long but
+  never when — and "Clear completed" deleted it. History now lives in its own entity and outlives
+  the tasks that produced it. A stretch crossing midnight is split so each day is credited
+  separately; a zero or backwards span records nothing, so a clock change cannot invent focus.
+- **Day types.** Days are working days or days off, resolved from a weekly pattern with per-day
+  overrides. Only overrides are stored, so a normal week writes nothing. Days off are skipped in
+  streak maths — they neither break a streak nor extend it — which is what lets a contribution
+  graph tell "I did not work" from "I chose not to work".
+- **Statistics**: totals, average and longest session, interruption rate, per-task breakdown, and
+  focus by hour of day. Long sessions are spread across the hours they spanned rather than
+  credited to whichever hour they began in.
+- **The companion.** A tortoise that gets sleepy while nothing is happening and wakes the moment
+  you touch the keyboard, shown in the mini HUD and on the active-task card. Its body takes the
+  task's colour and brightens as the day approaches its goal.
+- Working weekdays, a daily focus goal, and a toggle for the companion in Settings.
+
+### Notes
+
+- **The companion gets sleepy, not sick.** QuickWins can only observe how long the system has
+  gone without input; it cannot see whether you are working. A creature that sickened would
+  assert knowledge the app does not have, and would wilt through every meeting and every long
+  read. Sleep is literally true, recovers instantly, and is the floor — there is no state below
+  it and nothing to repair. A test asserts no state description implies harm.
+- **Backfilled history is flagged and quarantined from time-of-day analysis.** Existing tasks are
+  reconstructed once from their stored totals, but their clock times are a guess. Reporting a
+  guess back as your best working hours would be fabrication, so those records count toward
+  totals and nothing else.
+- Peak hours are withheld until at least ten genuinely observed sessions exist, rather than
+  naming an hour on thin evidence.
+
 ## [1.1.1] — 2026-07-29
 
 ### Fixed
@@ -160,6 +195,7 @@ Initial implementation.
 - Ships without an app icon, which needs Xcode's asset tooling.
 - Ad-hoc signed. Distribution to other Macs requires Developer ID signing and notarization.
 
+[1.2.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.2.0
 [1.1.1]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.1.1
 [1.1.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.1.0
 [1.0.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.0.0
