@@ -12,8 +12,10 @@ public enum SchemaVersion: Int, CaseIterable, Comparable, Sendable {
     case v1 = 1
     /// Adds the per-task colour label.
     case v2 = 2
+    /// Adds focus-session history and day-type overrides.
+    case v3 = 3
 
-    public static var current: SchemaVersion { .v2 }
+    public static var current: SchemaVersion { .v3 }
 
     public static func < (lhs: SchemaVersion, rhs: SchemaVersion) -> Bool {
         lhs.rawValue < rhs.rawValue
@@ -26,8 +28,9 @@ public enum MigrationPlan {
 
     public static func model(for version: SchemaVersion) -> NSManagedObjectModel {
         switch version {
-        case .v1: return makeModel(includeColor: false)
-        case .v2: return makeModel(includeColor: true)
+        case .v1: return makeModel(includeColor: false, includeHistory: false)
+        case .v2: return makeModel(includeColor: true, includeHistory: false)
+        case .v3: return makeModel(includeColor: true, includeHistory: true)
         }
     }
 
@@ -56,13 +59,34 @@ public enum MigrationPlan {
         public static let colorRaw = "colorRaw"
     }
 
-    /// Builds the entity for a given version.
+    /// Added in v3. One row per completed stretch of focus.
+    public enum SessionEntityKey {
+        public static let entityName = "SessionEntity"
+        public static let id = "id"
+        public static let taskID = "taskID"
+        public static let startedAt = "startedAt"
+        public static let endedAt = "endedAt"
+        public static let seconds = "seconds"
+        public static let dayPacked = "dayPacked"
+        public static let wasInterrupted = "wasInterrupted"
+        public static let isBackfilled = "isBackfilled"
+    }
+
+    /// Added in v3. Only days whose type differs from the weekly pattern are stored.
+    public enum DayMarkEntityKey {
+        public static let entityName = "DayMarkEntity"
+        public static let dayPacked = "dayPacked"
+        public static let typeRaw = "typeRaw"
+    }
+
+    /// Builds the model for a given version.
     ///
-    /// v1 → v2 adds one optional attribute with a default, which Core Data can infer a mapping
-    /// for, so lightweight migration handles existing stores without a mapping model. A change
-    /// that cannot be inferred — renaming or retyping an attribute, or splitting an entity —
-    /// must ship an explicit `NSMappingModel` before its version is added here.
-    private static func makeModel(includeColor: Bool) -> NSManagedObjectModel {
+    /// Every step so far is additive — v2 adds an optional attribute with a default, v3 adds two
+    /// wholly new entities — and Core Data can infer a mapping for both, so lightweight migration
+    /// handles existing stores without a mapping model. A change that cannot be inferred —
+    /// renaming or retyping an attribute, or splitting an entity — must ship an explicit
+    /// `NSMappingModel` before its version is added here.
+    private static func makeModel(includeColor: Bool, includeHistory: Bool) -> NSManagedObjectModel {
         let model = NSManagedObjectModel()
         let entity = NSEntityDescription()
         entity.name = TaskEntityKey.entityName
@@ -105,8 +129,44 @@ public enum MigrationPlan {
         // process cannot produce two rows for one task.
         entity.uniquenessConstraints = [[TaskEntityKey.id]]
 
-        model.entities = [entity]
+        var entities = [entity]
+        if includeHistory {
+            entities.append(makeSessionEntity())
+            entities.append(makeDayMarkEntity())
+        }
+        model.entities = entities
         return model
+    }
+
+    private static func makeSessionEntity() -> NSEntityDescription {
+        let entity = NSEntityDescription()
+        entity.name = SessionEntityKey.entityName
+        entity.managedObjectClassName = NSStringFromClass(NSManagedObject.self)
+        entity.properties = [
+            attribute(SessionEntityKey.id, .UUIDAttributeType, optional: false),
+            attribute(SessionEntityKey.taskID, .UUIDAttributeType, optional: false),
+            attribute(SessionEntityKey.startedAt, .dateAttributeType, optional: false),
+            attribute(SessionEntityKey.endedAt, .dateAttributeType, optional: false),
+            attribute(SessionEntityKey.seconds, .doubleAttributeType, optional: false, defaultValue: 0.0),
+            attribute(SessionEntityKey.dayPacked, .integer64AttributeType, optional: false, defaultValue: 0),
+            attribute(SessionEntityKey.wasInterrupted, .booleanAttributeType, optional: false, defaultValue: false),
+            attribute(SessionEntityKey.isBackfilled, .booleanAttributeType, optional: false, defaultValue: false),
+        ]
+        entity.uniquenessConstraints = [[SessionEntityKey.id]]
+        return entity
+    }
+
+    private static func makeDayMarkEntity() -> NSEntityDescription {
+        let entity = NSEntityDescription()
+        entity.name = DayMarkEntityKey.entityName
+        entity.managedObjectClassName = NSStringFromClass(NSManagedObject.self)
+        entity.properties = [
+            attribute(DayMarkEntityKey.dayPacked, .integer64AttributeType, optional: false, defaultValue: 0),
+            attribute(DayMarkEntityKey.typeRaw, .stringAttributeType, optional: false, defaultValue: DayType.working.rawValue),
+        ]
+        // One mark per day, enforced by the store rather than by application code.
+        entity.uniquenessConstraints = [[DayMarkEntityKey.dayPacked]]
+        return entity
     }
 
     private static func attribute(

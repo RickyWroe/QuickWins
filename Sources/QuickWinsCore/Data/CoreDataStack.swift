@@ -159,11 +159,18 @@ public final class CoreDataStack {
         var thrown: Error?
         // A row-by-row delete rather than NSBatchDeleteRequest: the daily task count is tiny,
         // and batch deletes are unsupported by the in-memory store used in some test setups.
+        let entityNames = [
+            MigrationPlan.TaskEntityKey.entityName,
+            MigrationPlan.SessionEntityKey.entityName,
+            MigrationPlan.DayMarkEntityKey.entityName,
+        ]
         context.performAndWait {
-            let request = NSFetchRequest<NSManagedObject>(entityName: MigrationPlan.TaskEntityKey.entityName)
             do {
-                for object in try context.fetch(request) {
-                    context.delete(object)
+                for name in entityNames {
+                    let request = NSFetchRequest<NSManagedObject>(entityName: name)
+                    for object in try context.fetch(request) {
+                        context.delete(object)
+                    }
                 }
                 try context.save()
             } catch {
