@@ -65,6 +65,19 @@ final class AppModel: ObservableObject {
     var canUndoDelete: Bool { coordinator.canUndoDelete }
     var notificationAuthorization: NotificationAuthorization { coordinator.notificationAuthorization }
     var sessionWasInterrupted: Bool { coordinator.sessionWasInterrupted }
+    var today: DayKey { coordinator.today }
+
+    func daySummaries(from start: DayKey, to end: DayKey) -> [DayKey: DaySummary] {
+        coordinator.daySummaries(from: start, to: end)
+    }
+
+    func statistics(from start: DayKey, to end: DayKey) -> FocusStatistics {
+        coordinator.statistics(from: start, to: end)
+    }
+
+    func setDayType(_ type: DayType, for day: DayKey) {
+        coordinator.setDayType(type, for: day)
+    }
 
     /// The companion's state, derived from the same accountability ladder the alerts use, so it
     /// inherits every suppression rule rather than inventing a second notion of inactivity.

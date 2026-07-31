@@ -17,7 +17,7 @@ Run the automated suite with:
 ./Scripts/test.sh
 ```
 
-Last executed: **228 tests in 22 suites, all passing.**
+Last executed: **242 tests in 24 suites, all passing.**
 
 ---
 
@@ -137,6 +137,20 @@ Last executed: **228 tests in 22 suites, all passing.**
 | H12 | Companion does not reintroduce the layout recursion | **[VERIFIED]** | 12 grow/shrink cycles with the pet present: process alive, 0 crash reports, HUD size stable. |
 | H13 | Companion sleep states on real hardware | **[PENDING]** | Start a task and leave the Mac untouched. Expect the tortoise to fill in and tilt at ~3, ~5 and ~10 minutes, and show `zzz` at ~15. Snooze it and expect the settled posture instead. |
 | H14 | Companion can be switched off | **[PENDING]** | Settings › General › *Show the companion*. Expect the plain colour dot to return. |
+
+## Dashboard
+
+| # | Scenario | Status | Notes |
+|---|---|---|---|
+| D1 | Grid geometry | **[AUTO]** | Rows aligned by weekday, days contiguous with no gaps or repeats, final week complete, month labels at the right columns, crowded labels thinned. |
+| D2 | Dashboard renders | **[VERIFIED]** | Captured live at 820×620: header, full-year graph, legend, streak cards, session cards, and the peak-hour section. |
+| D3 | Rest days differ by shape, not shade | **[VERIFIED]** | Inspected at native resolution: the Saturday and Sunday rows are dashed, the five weekday rows solid. Confirmed only after a native-res crop — an upscaled screenshot had aliased the solid borders into looking dashed. |
+| D4 | Today is ringed | **[VERIFIED]** | Visible on the current column in the same capture. |
+| D5 | Empty state explains itself | **[PENDING]** | With no history the graph should say it fills in as the timer is used, rather than looking broken. |
+| D6 | Peak hours withheld on thin data | **[VERIFIED]** | With 2 recorded sessions the section reads "Not enough recorded sessions yet to say", naming the ten-session threshold. |
+| D7 | Cell tooltips and VoiceOver values | **[PENDING]** | Hover a cell for the date and duration; the VoiceOver value must match the tooltip exactly. |
+| D8 | Backfill cannot double-count | **[AUTO]** | *Losing the settings marker does not cause history to be backfilled twice.* |
+| D9 | Opening from the menu bar | **[PENDING]** | Menu bar › Statistics…. The app is an accessory, so it activates itself first; the window must come to the front rather than opening behind other apps. |
 
 ## Menu bar and settings
 

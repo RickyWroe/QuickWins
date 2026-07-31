@@ -200,6 +200,16 @@ public final class TaskCoordinator {
     public func backfillHistoryIfNeeded() {
         guard settings.historyBackfilledAt == nil else { return }
 
+        // The settings flag alone is not enough. Preferences can be reset independently of the
+        // store, and by the time that happens a task's total already includes sessions recorded
+        // for real — so a second backfill would recreate them and double-count the history. The
+        // store is the reliable witness to whether this has already run.
+        if let existing = try? history.allSessions(), existing.contains(where: { $0.isBackfilled }) {
+            updateSettings { $0.historyBackfilledAt = self.time.now }
+            logger.info("history", "Backfill already present in the store; marker restored without re-running.")
+            return
+        }
+
         let candidates = tasks.filter { $0.accumulatedFocus > 0 }
         var records: [FocusSessionRecord] = []
         for task in candidates {

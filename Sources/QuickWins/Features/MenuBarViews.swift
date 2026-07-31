@@ -54,6 +54,7 @@ struct MenuBarContent: View {
     let openPanel: () -> Void
     let toggleHUD: () -> Void
     let hudIsVisible: Bool
+    let openStats: () -> Void
 
     var body: some View {
         if let task = model.focusTask {
@@ -76,6 +77,8 @@ struct MenuBarContent: View {
             .keyboardShortcut("o", modifiers: [.command, .shift])
 
         Button(hudIsVisible ? "Hide mini HUD" : "Show mini HUD") { toggleHUD() }
+
+        Button("Statistics…") { openStats() }
 
         if !model.tasks.isEmpty {
             Menu("Today's tasks") {

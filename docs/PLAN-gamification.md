@@ -1,13 +1,13 @@
 # Plan — gamification, history, and the dashboard
 
-Status: **Phases A and B shipped in 1.2.0.** Phases C and D not started.
+Status: **All four phases shipped** — A and B in 1.2.0, C and D in 1.3.0.
 
 | Phase | State |
 |---|---|
 | A — session history and day types | Shipped. Schema v3 live; the owner's database migrated and backfilled. |
 | B — the companion | Shipped. Tortoise in the mini HUD and the active-task card. |
-| C — the dashboard | Not started. Data is accumulating for it now. |
-| D — metrics | Not started. Needs a couple of weeks of Phase A data to say anything. |
+| C — the dashboard | Shipped. Contribution graph, streaks and session stats in a Stats window. |
+| D — metrics | Largely shipped alongside C. Peak hours stay hidden until ten known-time sessions exist. |
 
 Three additions: a pet avatar that reacts to whether you are working, a GitHub-style contribution
 graph, and metrics built on real session history.

@@ -5,6 +5,30 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-07-31
+
+### Added
+
+- **Statistics dashboard**, opened from the menu bar. A GitHub-style contribution graph over the
+  last year, streaks, session counts and averages, interruption rate, and focus by hour of day.
+  A separate window on purpose: the floating panel has to stay a glance you can dismiss without
+  thinking, and a year-wide graph is the opposite of that.
+- The graph encodes intensity within a **single hue** rather than across several, so it survives
+  colour blindness and increased contrast, and a **rest day is marked by its shape** — a dashed
+  outline — rather than by a shade. "I chose not to work" and "I worked nothing" are therefore
+  distinguishable with no colour perception at all. Every cell carries the same sentence for
+  VoiceOver that it shows on hover.
+- Peak-hour analysis is withheld until at least ten sessions with known times exist, and says so,
+  rather than naming an hour from a handful of records.
+
+### Fixed
+
+- **Backfill could run twice and double-count history.** The guard was keyed only on a settings
+  flag, and preferences can be reset independently of the store — a defaults wipe, a corrupt
+  blob, a machine that restores the database but not `UserDefaults`. By then a task's total
+  already includes sessions recorded for real, so a second backfill would recreate them. The
+  store is now the witness: if any backfilled record exists, backfill does not run again.
+
 ## [1.2.0] — 2026-07-31
 
 ### Added
@@ -195,6 +219,7 @@ Initial implementation.
 - Ships without an app icon, which needs Xcode's asset tooling.
 - Ad-hoc signed. Distribution to other Macs requires Developer ID signing and notarization.
 
+[1.3.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.3.0
 [1.2.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.2.0
 [1.1.1]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.1.1
 [1.1.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.1.0
