@@ -42,6 +42,7 @@ public final class TaskCoordinator {
     // MARK: - Dependencies
 
     private let repository: TaskRepository
+    private let history: HistoryRepository
     private let settingsStore: SettingsStoring
     private let time: TimeSource
     private let idleProvider: IdleTimeProviding
@@ -70,6 +71,7 @@ public final class TaskCoordinator {
 
     public init(
         repository: TaskRepository,
+        history: HistoryRepository,
         settingsStore: SettingsStoring,
         time: TimeSource,
         idleProvider: IdleTimeProviding,
@@ -78,6 +80,7 @@ public final class TaskCoordinator {
         calendar: Calendar = .current
     ) {
         self.repository = repository
+        self.history = history
         self.settingsStore = settingsStore
         self.time = time
         self.idleProvider = idleProvider
@@ -143,6 +146,7 @@ public final class TaskCoordinator {
         // Per-row normalization in the repository cannot see across rows, so a store holding two
         // active tasks — from an interrupted write or an older build — is reconciled here.
         repairSingleActiveInvariant()
+        backfillHistoryIfNeeded()
         applyDayRolloverIfNeeded()
         restoreInterruptedSessionIfNeeded()
         accountability = AccountabilityEngine.reset(for: activeTask?.id)
@@ -184,7 +188,123 @@ public final class TaskCoordinator {
             "timer",
             "Session for task \(updated.id.uuidString) had a \(Int(gap))s heartbeat gap; banked \(Int(updated.accumulatedFocus))s and paused."
         )
-        apply(replacing: [updated])
+        apply(replacing: [updated], sessionEndedAt: heartbeat, sessionInterrupted: true)
+    }
+
+    /// Reconstructs history from tasks that already carried focus time when recording began.
+    ///
+    /// A task stores only a total, so the resulting sessions are placed at the task's last
+    /// interaction and their clock times are a guess. They are flagged `isBackfilled` and are
+    /// excluded from anything that depends on *when* work happened — reporting an invented time
+    /// back to the user as their best working hour would be fabrication.
+    public func backfillHistoryIfNeeded() {
+        guard settings.historyBackfilledAt == nil else { return }
+
+        let candidates = tasks.filter { $0.accumulatedFocus > 0 }
+        var records: [FocusSessionRecord] = []
+        for task in candidates {
+            let end = task.completedAt ?? task.lastInteractionAt
+            records.append(contentsOf: SessionRules.close(
+                taskID: task.id,
+                from: end.addingTimeInterval(-task.accumulatedFocus),
+                to: end,
+                isBackfilled: true,
+                calendar: calendar
+            ))
+        }
+
+        do {
+            if !records.isEmpty { try history.record(records) }
+            updateSettings { $0.historyBackfilledAt = self.time.now }
+            logger.info("history", "Backfilled \(records.count) session(s) from \(candidates.count) existing task(s).")
+        } catch {
+            // Leaving the marker unset means it is retried next launch rather than silently lost.
+            logger.error("history", "Backfill failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - History
+
+    public func sessions(from start: DayKey, to end: DayKey) -> [FocusSessionRecord] {
+        do {
+            return try history.sessions(from: start, to: end)
+        } catch {
+            logger.error("history", "Reading sessions failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    public func allSessions() -> [FocusSessionRecord] {
+        do {
+            return try history.allSessions()
+        } catch {
+            logger.error("history", "Reading sessions failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    public func dayOverrides() -> [DayKey: DayType] {
+        do {
+            return try history.dayOverrides()
+        } catch {
+            logger.error("history", "Reading day marks failed: \(error.localizedDescription)")
+            return [:]
+        }
+    }
+
+    public func dayType(for day: DayKey) -> DayType {
+        DayTypeRules.type(
+            for: day,
+            workingWeekdays: settings.workingWeekdaySet,
+            overrides: dayOverrides(),
+            calendar: calendar
+        )
+    }
+
+    /// Marks a day, or clears the mark when the choice matches the weekly pattern anyway.
+    public func setDayType(_ type: DayType, for day: DayKey) {
+        let redundant = DayTypeRules.isRedundantOverride(
+            type,
+            for: day,
+            workingWeekdays: settings.workingWeekdaySet,
+            calendar: calendar
+        )
+        do {
+            try history.setDayOverride(redundant ? nil : type, for: day)
+            notifyChange()
+        } catch {
+            report(error, suggestion: "The day could not be marked. Try again.")
+        }
+    }
+
+    /// Everything the contribution graph needs for a range of days.
+    public func daySummaries(from start: DayKey, to end: DayKey) -> [DayKey: DaySummary] {
+        let totals = SessionRules.focusByDay(sessions(from: start, to: end))
+        let overrides = dayOverrides()
+        let goal = settings.dailyFocusGoalSeconds
+
+        var summaries: [DayKey: DaySummary] = [:]
+        var cursor = start
+        while cursor <= end {
+            let seconds = totals[cursor] ?? 0
+            summaries[cursor] = DaySummary(
+                day: cursor,
+                type: DayTypeRules.type(
+                    for: cursor,
+                    workingWeekdays: settings.workingWeekdaySet,
+                    overrides: overrides,
+                    calendar: calendar
+                ),
+                focusedSeconds: seconds,
+                level: HeatmapRules.level(seconds: seconds, goalSeconds: goal)
+            )
+            cursor = cursor.adding(days: 1, in: calendar)
+        }
+        return summaries
+    }
+
+    public func statistics(from start: DayKey, to end: DayKey) -> FocusStatistics {
+        StatisticsRules.compute(sessions: sessions(from: start, to: end), calendar: calendar)
     }
 
     // MARK: - Task commands
@@ -359,6 +479,7 @@ public final class TaskCoordinator {
     public func resetAllData() {
         do {
             try repository.deleteAll()
+            try history.deleteAllHistory()
             settingsStore.reset()
             tasks = []
             settings = settingsStore.load()
@@ -480,7 +601,17 @@ public final class TaskCoordinator {
         }
     }
 
-    private func apply(replacing changed: [DailyTask]) {
+    /// Applies a set of changed tasks and records any focus session they closed.
+    ///
+    /// `sessionEndedAt` exists for the stale-heartbeat path, which ends a session at the last
+    /// heartbeat rather than at `now` — crediting the whole gap would be the very over-counting
+    /// the heartbeat exists to prevent.
+    private func apply(
+        replacing changed: [DailyTask],
+        sessionEndedAt: Date? = nil,
+        sessionInterrupted: Bool = false
+    ) {
+        recordClosedSessions(for: changed, endedAt: sessionEndedAt ?? time.now, interrupted: sessionInterrupted)
         persist(changed)
         for task in changed {
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
@@ -491,6 +622,45 @@ public final class TaskCoordinator {
         }
         repairSingleActiveInvariant()
         notifyChange()
+    }
+
+    /// Writes a history record for every task whose running timer just stopped.
+    ///
+    /// Derived by diffing rather than by hooking each transition: `TaskRules` is pure and must
+    /// stay that way, and a diff cannot miss a path. `tasks` still holds the previous values at
+    /// this point, since `apply` updates them afterwards.
+    private func recordClosedSessions(for changed: [DailyTask], endedAt: Date, interrupted: Bool) {
+        var records: [FocusSessionRecord] = []
+
+        for task in changed {
+            guard let previous = tasks.first(where: { $0.id == task.id }),
+                  let startedAt = previous.sessionStartedAt,
+                  task.sessionStartedAt == nil
+            else { continue }
+
+            let closed = SessionRules.close(
+                taskID: task.id,
+                from: startedAt,
+                to: endedAt,
+                wasInterrupted: interrupted,
+                calendar: calendar
+            )
+            for record in closed where SessionRules.isImplausible(record) {
+                logger.notice(
+                    "history",
+                    "Recording an implausible \(Int(record.seconds))s session for task \(record.taskID.uuidString)."
+                )
+            }
+            records.append(contentsOf: closed)
+        }
+
+        guard !records.isEmpty else { return }
+        do {
+            try history.record(records)
+        } catch {
+            // History is valuable but never worth blocking a task change over.
+            logger.error("history", "Failed to record \(records.count) session(s): \(error.localizedDescription)")
+        }
     }
 
     private func persist(_ changed: [DailyTask]) {
@@ -531,6 +701,7 @@ public final class TaskCoordinator {
             }
             return copy.normalized()
         }
+        recordClosedSessions(for: repaired, endedAt: time.now, interrupted: true)
         tasks = repaired
         persist(repaired)
     }

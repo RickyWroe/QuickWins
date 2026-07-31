@@ -58,6 +58,10 @@ public struct ShortcutBinding: Codable, Equatable, Sendable {
 }
 
 public struct AppSettings: Codable, Equatable, Sendable {
+    /// The daily goal expressed the way the domain wants it.
+    public var dailyFocusGoalSeconds: TimeInterval { TimeInterval(dailyFocusGoalMinutes) * 60 }
+    public var workingWeekdaySet: Set<Int> { DayTypeRules.sanitized(workingWeekdays: Set(workingWeekdays)) }
+
     public var accountability: AccountabilityConfig
     public var menuBarDisplay: MenuBarDisplayStyle
     /// Open the panel next to the pointer rather than centred on the active screen.
@@ -86,6 +90,13 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// While following, the HUD is click-through: a window that moves with the cursor cannot be
     /// clicked, and one that accepted clicks would swallow them on whatever is underneath.
     public var miniHUDFollowsPointer: Bool
+    /// Which weekdays count as working days, `Calendar` numbering with 1 for Sunday. Days
+    /// outside this set are rest days: skipped in streaks, drawn distinctly in the graph.
+    public var workingWeekdays: [Int]
+    /// Focus target that defines a "full" day in the contribution graph and drives streaks.
+    public var dailyFocusGoalMinutes: Int
+    /// Set once history has been reconstructed from pre-existing tasks, so it happens only once.
+    public var historyBackfilledAt: Date?
     public var hasSeenWelcome: Bool
 
     public static let `default` = AppSettings(
@@ -104,6 +115,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDFollowsPointer: true,
         miniHUDMessagesEnabled: true,
         miniHUDMessageDelay: 15,
+        workingWeekdays: [2, 3, 4, 5, 6],
+        dailyFocusGoalMinutes: 120,
+        historyBackfilledAt: nil,
         hasSeenWelcome: false
     )
 
@@ -123,6 +137,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDFollowsPointer: Bool,
         miniHUDMessagesEnabled: Bool,
         miniHUDMessageDelay: TimeInterval,
+        workingWeekdays: [Int],
+        dailyFocusGoalMinutes: Int,
+        historyBackfilledAt: Date?,
         hasSeenWelcome: Bool
     ) {
         self.accountability = accountability
@@ -140,6 +157,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.miniHUDFollowsPointer = miniHUDFollowsPointer
         self.miniHUDMessagesEnabled = miniHUDMessagesEnabled
         self.miniHUDMessageDelay = miniHUDMessageDelay
+        self.workingWeekdays = workingWeekdays
+        self.dailyFocusGoalMinutes = dailyFocusGoalMinutes
+        self.historyBackfilledAt = historyBackfilledAt
         self.hasSeenWelcome = hasSeenWelcome
     }
 
@@ -162,6 +182,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         miniHUDFollowsPointer = (try? container.decode(Bool.self, forKey: .miniHUDFollowsPointer)) ?? fallback.miniHUDFollowsPointer
         miniHUDMessagesEnabled = (try? container.decode(Bool.self, forKey: .miniHUDMessagesEnabled)) ?? fallback.miniHUDMessagesEnabled
         miniHUDMessageDelay = (try? container.decode(TimeInterval.self, forKey: .miniHUDMessageDelay)) ?? fallback.miniHUDMessageDelay
+        workingWeekdays = (try? container.decode([Int].self, forKey: .workingWeekdays)) ?? fallback.workingWeekdays
+        dailyFocusGoalMinutes = (try? container.decode(Int.self, forKey: .dailyFocusGoalMinutes)) ?? fallback.dailyFocusGoalMinutes
+        historyBackfilledAt = try? container.decodeIfPresent(Date.self, forKey: .historyBackfilledAt)
         hasSeenWelcome = (try? container.decode(Bool.self, forKey: .hasSeenWelcome)) ?? fallback.hasSeenWelcome
     }
 
@@ -170,6 +193,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         copy.accountability = accountability.sanitized()
         copy.miniHUDAutoHideSeconds = min(max(0, miniHUDAutoHideSeconds), 60)
         copy.miniHUDMessageDelay = min(max(5, miniHUDMessageDelay), 300)
+        copy.workingWeekdays = DayTypeRules.sanitized(workingWeekdays: Set(workingWeekdays)).sorted()
+        copy.dailyFocusGoalMinutes = min(max(5, dailyFocusGoalMinutes), 16 * 60)
         return copy
     }
 }

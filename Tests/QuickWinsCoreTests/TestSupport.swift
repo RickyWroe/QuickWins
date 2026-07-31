@@ -52,15 +52,18 @@ enum Fixture {
         idle: StubIdleTimeProvider,
         notifications: RecordingNotificationService,
         repository: InMemoryTaskRepository,
+        history: InMemoryHistoryRepository,
         settingsStore: InMemorySettingsStore
     ) {
         let time = MutableTimeSource(start)
         let idle = StubIdleTimeProvider(seconds: idleSeconds)
         let notifications = RecordingNotificationService()
         let repository = InMemoryTaskRepository(seed: tasks)
+        let history = InMemoryHistoryRepository()
         let settingsStore = InMemorySettingsStore(settings)
         let coordinator = TaskCoordinator(
             repository: repository,
+            history: history,
             settingsStore: settingsStore,
             time: time,
             idleProvider: idle,
@@ -69,6 +72,6 @@ enum Fixture {
             calendar: Fixture.calendar
         )
         coordinator.load()
-        return (coordinator, time, idle, notifications, repository, settingsStore)
+        return (coordinator, time, idle, notifications, repository, history, settingsStore)
     }
 }

@@ -15,6 +15,7 @@ final class AppEnvironment {
     let launchAtLogin: LaunchAtLoginManaging
     let settingsStore: SettingsStoring
     let repository: TaskRepository
+    let history: HistoryRepository
     let coordinator: TaskCoordinator
     let ticker: TickScheduling
 
@@ -33,22 +34,27 @@ final class AppEnvironment {
 
         var recovered = false
         let repository: TaskRepository
+        let history: HistoryRepository
         do {
             let stack = try CoreDataStack(logger: logger)
             recovered = stack.recoveredFromCorruptStore
             repository = CoreDataTaskRepository(stack: stack, logger: logger)
+            history = CoreDataHistoryRepository(stack: stack, logger: logger)
         } catch {
             // Falling back to memory keeps the app usable for the current session instead of
             // refusing to launch. The UI reports that nothing will be saved.
             logger.error("bootstrap", "Persistent store unavailable: \(error.localizedDescription)")
             repository = InMemoryTaskRepository()
+            history = InMemoryHistoryRepository()
             recovered = false
         }
         self.repository = repository
+        self.history = history
         self.storeWasRecovered = recovered
 
         self.coordinator = TaskCoordinator(
             repository: repository,
+            history: history,
             settingsStore: settingsStore,
             time: time,
             idleProvider: idleProvider,
