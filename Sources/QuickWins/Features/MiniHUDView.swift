@@ -12,6 +12,11 @@ struct MiniHUDView: View {
     /// hovered or tapped — showing hover affordances then would promise something that cannot
     /// happen.
     let isInteractive: Bool
+    /// The exact size the window will be. Pinned rather than proposed: a view that asks for a
+    /// different size than its window makes SwiftUI resize the window during layout, which
+    /// re-enters layout and eventually trips AppKit's display-cycle limit.
+    let compactSize: CGSize
+    let expandedSize: CGSize
     let openPanel: () -> Void
 
     @State private var isHovering = false
@@ -46,12 +51,17 @@ struct MiniHUDView: View {
                     // other and recurse until the stack is exhausted. That crashed the app four
                     // times. A fixed width breaks the cycle and keeps a longer line to two rows
                     // rather than one very wide capsule beside the pointer.
-                    .frame(width: 168, alignment: .leading)
+                    .frame(width: expandedSize.width - 20, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
+        .frame(
+            width: (message == nil ? compactSize : expandedSize).width,
+            height: (message == nil ? compactSize : expandedSize).height,
+            alignment: .leading
+        )
         .background(hudBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)

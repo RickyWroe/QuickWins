@@ -111,6 +111,8 @@ Last executed: **242 tests in 24 suites, all passing.**
 | M8 | Colour picker in the editor | **[PENDING]** | Selection is marked with a ring **and** a checkmark, not colour alone. |
 | M9 | Migration from a pre-colour database | **[AUTO]** + **[VERIFIED]** | *A v1 store opens under v2 with its tasks intact and no data loss*. Also verified live: the running app logged `Store schema 1 opened by app schema 2` against a real v1 database and the existing task survived. |
 | M10 | Unknown or missing colour value | **[AUTO]** | *A row written before colours existed reads back as the neutral fallback*; *An unrecognised colour name falls back rather than failing the read*. |
+| M18 | Launch with the HUD enabled | **[VERIFIED]** | Regression cover for the launch crash. Six consecutive launches with the HUD set to show: all alive, HUD present at 116×30, zero faults in the unified log, zero crash reports. |
+| M19 | HUD window size is fixed, not negotiated | **[VERIFIED]** | Compact 116×30 and expanded 196×54, both captured. Twelve message grow/shrink cycles with no faults. |
 | M12 | Resting message appears after 15s | **[VERIFIED]** | Observed live: the pointer parked, and ~14 s later the HUD window grew from 69×28 to 107×45 and rendered "Small steps are still steps." under the timer. It held for the rest of the still period. |
 | M13 | Message clears on movement | **[VERIFIED]** | Same run: the moment the pointer moved, the window shrank back to 69×28 and repositioned. |
 | M14 | One message per rest, not a rotation | **[VERIFIED]** | The window stayed at 107×45 across three consecutive 2 s samples without changing size, i.e. no new message was swapped in. |

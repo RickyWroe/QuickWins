@@ -5,6 +5,34 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] — 2026-08-01
+
+### Fixed
+
+- **The app died at launch, every time, whenever the mini HUD was set to show.** Found during a
+  final QA pass: six launches out of six, with no crash report to point at. The unified log had
+  it — `NSGenericException` from AppKit's display cycle, after
+  `NSHostingView.windowDidLayout` → `updateAnimatedWindowSize` → `NSWindow._setFrameCommon` →
+  `setNeedsLayout` → back to the start, until AppKit refused.
+
+  The 1.1.1 fix stopped *this app* from resizing the HUD window during layout, but the size was
+  still being **measured from the view** and applied to the window. That leaves a negotiation:
+  the resize triggers a layout pass, SwiftUI answers with a size of its own, and the two argue.
+  The re-entrancy guard could not help, because the second half of the loop is inside SwiftUI.
+
+  The HUD window now has fixed sizes chosen from state — compact, or taller when a resting
+  message is showing — and the view is *told* those sizes rather than asked for them. With
+  nothing to negotiate, the loop cannot form. Verified over six consecutive launches and twelve
+  message grow/shrink cycles: no failures and no faults.
+
+  Bisecting showed older commits failing the same way on the same machine, so this was a latent
+  fault that changed in the environment rather than a regression introduced by recent work.
+
+### Changed
+
+- The HUD is a constant width instead of hugging its clock text, so it no longer jitters as the
+  timer ticks — a side effect of fixed sizing, and an improvement beside the pointer.
+
 ## [1.3.0] — 2026-07-31
 
 ### Added
@@ -219,6 +247,7 @@ Initial implementation.
 - Ships without an app icon, which needs Xcode's asset tooling.
 - Ad-hoc signed. Distribution to other Macs requires Developer ID signing and notarization.
 
+[1.3.1]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.3.1
 [1.3.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.3.0
 [1.2.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.2.0
 [1.1.1]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.1.1

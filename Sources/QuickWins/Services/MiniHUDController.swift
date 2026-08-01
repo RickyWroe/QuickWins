@@ -19,6 +19,18 @@ final class MiniHUDController {
     /// Sub-pixel jitter is not worth a window-server round trip.
     private static let movementThreshold: CGFloat = 0.5
 
+    /// Window sizes are constants, not measurements.
+    ///
+    /// Asking the hosting view what size it wants and then resizing the window to match sets up a
+    /// negotiation: the resize triggers `windowDidLayout`, SwiftUI answers with
+    /// `updateAnimatedWindowSize`, that resizes the window again, and AppKit's display cycle
+    /// eventually refuses with `NSGenericException` — which killed the app at launch, every time,
+    /// with no crash report. Fixed sizes end the negotiation: the view is told how big it is and
+    /// never asks. A pill that does not jitter as the clock ticks is better beside the pointer
+    /// anyway.
+    static let compactSize = CGSize(width: 116, height: 30)
+    static let expandedSize = CGSize(width: 196, height: 54)
+
     private let model: AppModel
     private let logger: DiagnosticLogging
     private let openPanel: () -> Void
@@ -236,19 +248,15 @@ final class MiniHUDController {
         pollCursor()
     }
 
-    /// Resizes the window to fit its content. The only place the HUD window's size is set.
-    ///
-    /// Measured with `sizeThatFits(in:)` against a generous proposal rather than the view's
-    /// `fittingSize`: the latter is derived from the view's current bounds, so feeding it back in
-    /// as the window size makes each pass measure a slightly smaller view and the HUD ratchets
-    /// down to nothing.
-    private func syncContentSize() {
-        guard let panel, let hosting, !isAdjustingFrame else { return }
-        let proposal = CGSize(width: 400, height: 200)
-        let fitting = hosting.sizeThatFits(in: proposal)
-        guard fitting.width > 1, fitting.height > 1 else { return }
+    /// The size the HUD should be right now. Derived from state, never from the view.
+    private var targetContentSize: CGSize {
+        model.hudMessage == nil ? Self.compactSize : Self.expandedSize
+    }
 
-        let target = CGSize(width: ceil(fitting.width), height: ceil(fitting.height))
+    /// Applies the target size. The only place the HUD window's size is set.
+    private func syncContentSize() {
+        guard let panel, !isAdjustingFrame else { return }
+        let target = targetContentSize
         guard abs(target.width - panel.frame.width) > 0.5
                 || abs(target.height - panel.frame.height) > 0.5 else { return }
 
@@ -333,7 +341,12 @@ final class MiniHUDController {
 
         panel?.orderOut(nil)
 
-        let rootView = MiniHUDView(model: model, isInteractive: !followsPointer) { [weak self] in
+        let rootView = MiniHUDView(
+            model: model,
+            isInteractive: !followsPointer,
+            compactSize: Self.compactSize,
+            expandedSize: Self.expandedSize
+        ) { [weak self] in
             guard let self else { return }
             if !self.model.settings.miniHUDAlwaysVisible { self.hide(persist: false) }
             self.openPanel()
@@ -346,7 +359,7 @@ final class MiniHUDController {
         hosting.sizingOptions = []
 
         let panel = FloatingPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 110, height: 30),
+            contentRect: NSRect(origin: .zero, size: Self.compactSize),
             acceptsKey: false
         )
         panel.contentViewController = hosting
