@@ -1,18 +1,16 @@
 # QuickWins
 
-A lightweight native macOS daily task tracker that lives in the menu bar and opens as a compact
-floating panel beside your pointer.
+**A macOS menu-bar app that turns "where did today go?" into an answer you can look at.**
 
-QuickWins is an accountability tool, not a project manager. It asks one question — *what are you
-working on right now?* — keeps a timer on it, and checks in when your Mac has seen no input for a
-while. It never claims you are slacking; it asks, and every prompt has a way out that is not
-"complete the task".
+You name what you're working on. It runs a timer on exactly one thing at a time, notices when your
+Mac goes quiet, and keeps a record. After a few weeks you have a contribution graph of your own
+attention — when you focus, for how long, and how often something breaks it.
 
 ```
-TODAY 2/5                      35m
-
+TODAY 2/5                      35m          ●  34:18        ← beside your cursor
+                                            Still here. Still going.
   Current focus
-  Build landing page
+  🐢 Build landing page
   34:18 elapsed
   10:42 left of 45m
   [ Pause ]  [ Finish ]  …
@@ -20,379 +18,235 @@ TODAY 2/5                      35m
 Upcoming
   ○ Send proposal
   ○ Review campaign
-  ○ Exercise
 
 + Add task
 ```
 
 ---
 
-## Requirements
+## The outcome
 
-| | |
-|---|---|
-| macOS | 14.0 (Sonoma) or later |
-| Toolchain | Swift 6.0+ — Xcode 15+, or Command Line Tools alone |
-| Dependencies | None. Apple frameworks only. |
+Three things, in order of how much they change your day:
 
-No account, no network, no backend, no third-party packages.
+**One task runs at a time — enforced, not suggested.** Starting something pauses whatever was
+running. You cannot have four things "in progress." Every switch is a decision you have to make on
+purpose, and the app records that you made it.
 
----
+**Time is measured, not estimated.** Elapsed time comes from timestamps, so it survives quitting,
+sleeping and crashing. What you see is what actually happened, including the parts you'd rather
+round up.
 
-## Build and run
+**Your attention becomes a picture.** A GitHub-style graph over six months, plus streaks, session
+lengths, interruption rate and — once there's enough data — the hours you actually focus best.
 
-```bash
-./Scripts/build_app.sh
-```
-
-That compiles a release build, assembles `dist/QuickWins.app`, and ad-hoc signs it. Then:
-
-```bash
-open dist/QuickWins.app
-```
-
-QuickWins appears in the menu bar with no Dock icon. To keep it around, drag `dist/QuickWins.app`
-into `/Applications` and enable **Launch at login** in Settings.
-
-To build without bundling:
-
-```bash
-swift build -c release
-```
-
-> The executable must run from the `.app` bundle for notifications and launch-at-login to work —
-> both need a bundle identifier. QuickWins detects the unbundled case and disables those two
-> features rather than crashing, so `swift run` is still useful for development.
+What it deliberately does **not** do: tell you that you were unproductive. The app can see one
+thing, seconds since your last keypress. It never claims to know more than that.
 
 ---
 
-## Test
+## The three surfaces
+
+| Surface | Shortcut | For |
+|---|---|---|
+| **Mini HUD** | `⌥Q` | A capsule beside your cursor: task colour, elapsed time, and a tortoise that dozes off when the Mac goes quiet. Click-through, so it never blocks anything. |
+| **Panel** | `⌥Space` | Today's list. Add, start, pause, finish, reorder, undo. Opens beside your pointer, closes on Escape. |
+| **Dashboard** | menu bar → Statistics | The graph and the numbers. |
+
+**Accountability** is deliberately weak. At 3 minutes of no input the indicator changes; at 5 and
+10 a notification asks *"still on this?"*; at 15 the session is flagged interrupted — the task
+itself is never touched. Every prompt offers *Still working*, *Pause*, *Switch*, *Snooze*. Snooze
+for reading or meetings, or switch check-ins off per task.
+
+---
+
+## Quick start
 
 ```bash
-./Scripts/test.sh
+./Scripts/build_app.sh && open dist/QuickWins.app
 ```
 
-141 tests across 13 suites, written with **Swift Testing**. They cover the domain rules, the
-repository, timer durability, the accountability state machine, screen positioning, notification
-scheduling, settings storage, schema migration, and defensive handling of corrupt data — all with
-injected clocks and idle values, so nothing sleeps and nothing is flaky.
+```bash
+./Scripts/test.sh    # 248 tests, 25 suites
+```
 
-The script exists because the Swift Testing framework bundled with Command Line Tools is not on
-the default search path the way it is inside Xcode. With a full Xcode install, plain `swift test`
-also works.
+macOS 14+, Swift 6. **No dependencies** — Apple frameworks only. Xcode optional; Command Line
+Tools are enough.
+
+> `./Scripts/test.sh` rather than `swift test`: the Swift Testing framework bundled with Command
+> Line Tools isn't on the default search path, so the script passes the framework and rpath flags.
 
 ---
 
 ## Architecture
 
-Two targets, with a hard boundary between them.
-
-**`QuickWinsCore`** — a library with no SwiftUI and no AppKit. All behaviour lives here, which is
-why the full lifecycle is testable without a UI.
+Two targets, one hard boundary.
 
 ```
-Domain/     DailyTask, TaskStatus, TaskColor, DayKey, FocusSession,
-            AccountabilityState, TaskRules
-Data/       CoreDataStack, MigrationPlan, TaskRepository (+ Core Data
-            and in-memory implementations), AppSettings, SettingsStore
-Services/   TimeSource, IdleDetectionService, AccountabilityEngine,
-            NotificationService, TimerService, LaunchAtLoginService,
-            ScreenPositioning, DiagnosticLogger, TaskCoordinator
+QuickWinsCore/          no SwiftUI, no AppKit — all behaviour lives here
+  Domain/               DailyTask · TaskRules · TaskStatus · TaskColor · DayKey
+                        FocusSession · FocusSessionRecord · DayRules · PetState
+                        AccountabilityState · ContributionGrid · FocusStatistics
+  Data/                 CoreDataStack · MigrationPlan · TaskRepository
+                        HistoryRepository · AppSettings · SettingsStore
+  Services/             TaskCoordinator · AccountabilityEngine · IdleDetection
+                        ScreenPositioning · Notifications · TimeSource · Logger
+
+QuickWins/              the executable
+  App/                  QuickWinsApp · AppDelegate · AppEnvironment · AppModel
+  Services/             FloatingPanelController · MiniHUDController · GlobalShortcut
+  Features/             panel · HUD · dashboard · settings · menu bar
 ```
 
-**`QuickWins`** — the executable: app lifecycle, the `NSPanel`, and the SwiftUI views.
+Everything system-facing sits behind a protocol — clock, idle time, notifications, storage,
+launch-at-login — so the whole lifecycle runs in tests with no UI and no waiting.
 
-```
-App/        QuickWinsApp, AppDelegate, AppEnvironment, AppModel
-Services/   FloatingPanel, FloatingPanelController, MiniHUDController,
-            GlobalShortcutService
-Features/   PanelRootView, ProgressHeader, ActiveTaskCard, TaskListView,
-            QuickAddField, TaskEditorView, SettingsView, MenuBarViews,
-            MiniHUDView, ShortcutRecorder, Theme
-```
+### Five decisions that shaped it
 
-### Decisions worth knowing
+**Task transitions are pure functions.** `TaskRules` takes the day's tasks and returns a new array.
+The one-active-task rule lives there, not in a view, so it holds no matter which surface triggered
+the change. The result is written as a single transaction — switching tasks can't be half-applied.
 
-**Task state transitions are pure functions.** `TaskRules` takes the day's tasks and returns a new
-array. The *never more than one active task* invariant is enforced there, not in a view, so it
-holds no matter which surface — panel, menu bar, or notification action — initiated the change. A
-whole-day result is then written as one transaction, so switching tasks (which pauses one and
-starts another) can never be persisted half-applied. The coordinator also reconciles the invariant
-on load, in case a crash or an older build left two active rows behind.
+**Elapsed time is derived, never counted.** Banked seconds plus the instant the session started.
+No per-second writes. A once-a-minute heartbeat bounds what a crash can over-count: on relaunch,
+anything past the last heartbeat is discarded rather than credited as focus.
 
-**Elapsed time is derived from timestamps, never counted.** A task stores banked focus seconds plus
-the instant the current session started. Elapsed time is arithmetic on those two values, so it is
-correct after the panel closes, after a relaunch, and after sleep — with no per-second writes.
+**Accountability is a pure state machine.** Given a state, an idle reading and an instant,
+`AccountabilityEngine.evaluate` returns the next state and a list of effects — so the whole
+escalation ladder is tested without waiting fifteen real minutes.
 
-**A heartbeat bounds what a crash can over-count.** Pure wall-clock arithmetic would credit an
-eight-hour sleep as eight hours of focus. A running session writes a heartbeat once a minute; on
-launch or wake, anything past the last heartbeat is discarded and the session is flagged
-interrupted. One write per minute, not sixty.
+**History is separate from tasks.** A task stores a total, which says how long but never when, and
+"Clear completed" deletes it. Sessions live in their own table and outlive the tasks that made
+them. Sessions crossing midnight are split so each day is credited correctly.
 
-**The accountability engine is a deterministic state machine.** Given a state, an idle reading, a
-config and an instant, `AccountabilityEngine.evaluate` returns the next state and a list of
-effects. The escalation ladder is tested exhaustively without waiting fifteen real minutes.
+**Window sizes are owned by controllers, never negotiated with SwiftUI.** Earned the hard way —
+see below.
 
-**Screen positioning is pure geometry.** It operates on plain rectangles, not `NSScreen`, so
-multi-monitor behaviour, edge flipping and clamping are all verified headlessly. The panel and the
-mini HUD share it, so both appear in a consistent spot relative to the pointer.
+### Core Data, not SwiftData
 
-**One Carbon event handler, many hot keys.** `InstallEventHandler` refuses a duplicate
-registration of the same callback on the same target, so the handler is installed once per process
-and dispatches by hot-key id. Installing per service instance silently breaks every hot key after
-the first.
-
-**The ticker only runs when something depends on it.** No active task, no visible panel and no
-visible HUD means no timer at all.
-
-**The HUD window is sized by the controller, never by SwiftUI layout.** Setting a window frame
-runs a synchronous layout pass; if that layout is allowed to resize the window, the resize
-re-enters the frame change and the two recurse until the stack is exhausted. With the window being
-moved at pointer rate, that is not a rare race — it crashed the app four times before the cause was
-found in the crash stack. `MiniHUDController.syncContentSize` is the single place the HUD's size is
-set, measured with `sizeThatFits(in:)` against a fixed proposal, and every frame change is wrapped
-in a re-entrancy guard.
-
-**The HUD's follow loop adapts to whether the pointer is moving.** Mouse monitors alone are not
-enough — a cursor can move without this process seeing an event, and a warp generates none at all
-— so polling is the source of truth and the monitors exist only to snap back to the fast cadence
-the moment the pointer stirs. Moving it: 30 Hz. Still for three quarters of a second: 2 Hz. That
-matters because an always-on HUD spends most of its life parked. Measured on the machine this was
-built on, with `top`, where 100% is one core:
-
-| State | CPU |
-|---|---|
-| HUD off (baseline) | 2–4% |
-| HUD on, pointer still | 2.3–3.6% |
-| HUD on, pointer moving | ~4% typical, to ~18% during vigorous movement |
-
-At rest the HUD is indistinguishable from having it off. While following, the cost is the window
-move itself — measurably not the drop shadow (disabled while following) and only marginally the
-material backdrop (swapped for a flat fill while following, which also reads better over
-arbitrary content).
-
-### Core Data instead of SwiftData
-
-The brief asked for SwiftData. **This project uses Core Data directly**, behind the same
-`TaskRepository` protocol.
-
-SwiftData's `@Model` macro is expanded by `libSwiftDataMacros.dylib`, which ships **only with
-Xcode** — it is absent from a Command Line Tools toolchain, and this project was built on a machine
-with no Xcode installed. Any `@Model` type fails to compile with
-`plugin for module 'SwiftDataMacros' not found`.
-
-Core Data is SwiftData's own storage engine, so nothing is lost functionally: persistence,
-migrations, transactions, uniqueness constraints and ordering all behave identically. The model is
-built programmatically in `MigrationPlan.swift` rather than from an `.xcdatamodeld` bundle, which
-also removes the need for Xcode's model editor.
-
-Swapping in SwiftData later means writing one new `TaskRepository` implementation. The domain
-layer, the services, the views and every test stay untouched.
-
-`XCTest.framework` is likewise Xcode-only, so the suite is written entirely in Swift Testing.
+The brief asked for SwiftData. SwiftData's `@Model` macro is expanded by a plugin that ships
+**only with Xcode**, and this was built on a machine with Command Line Tools alone — any `@Model`
+type fails to compile. Core Data is SwiftData's own engine, sits behind the same
+`TaskRepository` protocol, and the model is built programmatically in `MigrationPlan.swift`.
+Swapping SwiftData back in means writing one new repository implementation; domain, views and
+tests don't move.
 
 ---
 
-## Keyboard shortcuts
+## How this was built
 
-**Global**
+Notes on process, because the interesting parts aren't in the feature list.
 
-| Shortcut | Action |
-|---|---|
-| `⌥Space` | Show or hide the full panel (configurable) |
-| `⌥Q` | Show or hide the mini HUD beside the pointer (configurable) |
+**Constraints were found before committing to a design, not after.** The SwiftData blocker was
+proven by compiling a minimal `@Model` and reading the error — not assumed. Same for the test
+framework, and for whether global mouse monitors fire without Accessibility permission.
 
-**While the panel is open**
+**The honesty rules are enforced by tests, not by care.** There's a test that fails if any
+motivational message contains "great job" or similar, and another that fails if a companion state
+description implies harm. The app can only observe idle seconds; encoding that as a test stops the
+constraint eroding as features are added.
 
-| Shortcut | Action |
-|---|---|
-| `⌘N` | Focus the quick-add field |
-| `⌘↩` | Start the selected task |
-| `⌘⇧↩` | Complete the active task |
-| `Space` | Pause or resume (ignored while typing) |
-| `↑` `↓` | Move the selection |
-| `Delete` | Delete the selected task |
-| `⌘Z` | Undo the last delete |
-| `Escape` | Dismiss the panel |
+**Reconstructed data is quarantined.** When session history was introduced, existing tasks were
+backfilled from their stored totals — but those clock times are guesses, so the records are flagged
+and excluded from peak-hour analysis. Reporting a guess back as "your best working hours" would be
+fabrication.
 
-`⌥Space` is the default because it is unassigned in a stock macOS install — `⌘Space` belongs to
-Spotlight and `⌃Space` to input-source switching. If macOS refuses the registration, Settings shows
-the conflict and the menu-bar item still opens the panel.
+**Measured rather than assumed.** The HUD follows the pointer all day, so its cost was measured
+with `top` at each step. That produced an adaptive cadence — 30 Hz while the pointer moves, 2 Hz
+once it's still — and, along the way, disproved two plausible-sounding theories about what the cost
+actually was (the drop shadow: nothing; the material backdrop: about 1%).
 
-> **Avoid a plain Shift combination.** A global hot key *consumes* the keystroke system-wide, so
-> binding `⇧Q` would stop you typing a capital Q in every app on the Mac. Every default here
-> carries a non-Shift modifier for that reason. The recorder also rejects a bare key with no
-> modifier at all.
+**Several real bugs were found only by running the app.** Worth naming, because tests didn't catch
+any of them:
 
-## Mini HUD
+- *Only the first global hot key worked.* Carbon rejects a duplicate handler registration with
+  `eventHandlerAlreadyInstalledErr`, so adding a second shortcut left it silently dead. The log
+  said so; nothing else did.
+- *Three separate recursive-layout crashes.* All the same root cause: letting SwiftUI and AppKit
+  negotiate a window's size. A hosting view resizes the window, that triggers layout, layout
+  resizes the window. One killed the app at launch; one killed it when adding a task. Fixed by
+  giving controllers sole ownership of window sizing.
+- *Backfill could double-count.* Its guard was a preference flag — and preferences reset
+  independently of the database. The store is now the witness.
 
-A capsule roughly the size of a menu-bar item, showing the current task's colour and its elapsed
-time and nothing else — for when you want to check in without opening the panel.
+**A screenshot is not evidence.** One "bug" turned out to be image upscaling aliasing solid
+borders into dashed ones. Checking at native resolution showed the rendering was correct all along.
 
-```
- ●  34:18
-```
-
-- **Stays on screen** until you switch it off with `⌥Q` or the menu-bar item, and that choice
-  survives a relaunch. Turn *Keep the HUD on screen* off in Settings and the shortcut becomes a
-  peek that hides itself after a few seconds instead.
-- **Follows the pointer**, staying 12 points down and to the right of it, flipping at screen
-  edges and moving between displays as you do.
-- **Click-through while following.** A window glued to the cursor cannot be clicked — you can
-  never reach it — and one that accepted clicks would swallow them on whatever is underneath. So
-  it ignores mouse events entirely and never gets in your way.
-- **Never takes keyboard focus**, so pressing `⌥Q` mid-sentence does not interrupt typing.
-- Hides itself after a few seconds (configurable, or set to stay open).
-- A pause glyph sits inside the dot when the timer is stopped, so run state is never conveyed by
-  colour alone.
-- **Rests with a short message.** Once the pointer has been still for 15 seconds the capsule grows
-  to show one short line, and holds it until you move again.
-
-Turn **Follow the pointer** off in Settings and it reverts to being placed once where the pointer
-was, which makes it clickable — clicking then opens the full panel.
-
-### Resting messages
-
-A still pointer is not the same as a stopped person — if you are typing, your cursor never moves,
-which is exactly when you are most focused. So the messages are built to be quiet:
-
-- **One per rest, not a rotation.** A message appears once the pointer has been still, and stays
-  put until you move. You do not get a new one every 15 seconds.
-- **Only while a task is actually running.** Nothing appears when the timer is paused, when no
-  task is active, or while alerts are snoozed.
-- **Never at the same time as an accountability prompt.** The moment idle detection stops reading
-  calm, the message disappears, so the app never encourages you and asks "still working?" at once.
-- **They never claim to know how it is going.** QuickWins cannot see your work, so no message
-  congratulates an outcome — a test enforces this, along with the ten-word ceiling.
-
-Both the delay and the whole feature are in Settings › General › Mini HUD.
-
-Each task carries one of eight colours, handed out in rotation as tasks are created so a day's
-list is legible immediately. Change one from the task editor, the row's context menu, or the
-active card's ⋯ menu. Colour is always accompanied by the colour's name in VoiceOver and by a
-status glyph on screen — it is identity, never state.
-
----
-
-## Permissions
-
-QuickWins asks for as little as macOS allows.
-
-| Permission | Required? | Why |
-|---|---|---|
-| Notifications | Optional | Accountability check-ins. Denied is handled: check-ins become panel-only and a banner explains how to re-enable them. |
-| Launch at login | Optional | Registered through `SMAppService`, toggled by you in Settings. |
-| Accessibility | **Never requested** | Not needed. |
-| Screen Recording | **Never requested** | Not needed. |
-| Full Disk Access | **Never requested** | Not needed. |
-
-Inactivity is measured with `CGEventSource.secondsSinceLastEventType`, which returns **a duration
-and nothing else**. It needs no permission prompt and cannot report what was typed or clicked. The
-`.hidSystemState` source counts hardware input only, so synthetic events from scripts are not
-mistaken for a person being present.
+**[docs/MANUAL_QA.md](docs/MANUAL_QA.md) separates what was proven from what wasn't** — `[AUTO]`,
+`[VERIFIED]`, `[CONFIRMED]` by the owner, and `[PENDING]`. Nothing is marked tested unless it was
+actually run.
 
 ---
 
 ## Privacy
 
-- Everything is stored **locally**, in `~/Library/Application Support/QuickWins/QuickWins.sqlite`.
-- **No account.** There is nothing to sign into.
-- **Nothing is transmitted.** The app makes no network requests of any kind.
-- **No analytics**, no telemetry, no crash reporting to anyone.
-- QuickWins does **not** inspect what you type, your browser history, your files, your screen
-  contents, or window titles.
-- It uses **system idle duration only** — one number, how many seconds since the last input — to
-  decide when to check in.
-- Notification and launch-at-login permissions are optional and entirely under your control.
-- The diagnostic log records app events and task **identifiers**. It never contains task titles,
-  notes, or anything you type, so an exported log is safe to share.
+Everything is local. No account, no network, no analytics — the app makes no HTTP requests at all.
 
-Full statement: [PRIVACY.md](PRIVACY.md).
+It does **not** read what you type, your clipboard, browser history, files, screen contents or
+window titles. It reads exactly one number:
+`CGEventSource.secondsSinceLastEventType` — seconds since the last hardware input. That needs no
+permission prompt, which is precisely why it was chosen over an event tap.
+
+| Permission | Required |
+|---|---|
+| Notifications | Optional — denial is handled, check-ins move into the panel |
+| Launch at login | Optional, via `SMAppService` |
+| Accessibility · Screen Recording · Full Disk Access | **Never requested** |
+
+Tasks live in `~/Library/Application Support/QuickWins/QuickWins.sqlite`; preferences in
+`UserDefaults`. The diagnostic log records task **identifiers**, never titles or notes, so an
+exported log is safe to share. Full statement: [PRIVACY.md](PRIVACY.md).
 
 ---
 
-## Data storage
+## Keyboard
 
-| What | Where |
-|---|---|
-| Tasks | `~/Library/Application Support/QuickWins/QuickWins.sqlite` |
-| Settings | `UserDefaults`, under `com.rickywroe.quickwins.settings` |
-| Diagnostic log | In memory (last 500 entries); exported only when you ask |
+**Global:** `⌥Space` panel · `⌥Q` HUD — both configurable.
 
-**Settings › Advanced › Reset all data** deletes every task and restores defaults.
+**In the panel:** `⌘N` add · `⌘↩` start · `⌘⇧↩` complete · `Space` pause/resume · `↑`/`↓` select ·
+`Delete` remove · `⌘Z` undo · `Esc` dismiss.
 
-If the database cannot be opened, QuickWins renames it to `QuickWins.sqlite.corrupt-<timestamp>`,
-starts a fresh one, and tells you. The bad file is kept rather than deleted, so nothing is
-destroyed silently. If even that fails, the app falls back to in-memory storage for the session and
-says clearly that nothing will be saved.
+> A global hot key *consumes* its keystroke system-wide, so a bare `⇧`+letter would make that
+> capital letter untypable everywhere. Defaults avoid it and the recorder rejects modifier-less
+> keys.
 
 ---
 
 ## Known limitations
 
-These are real, and stated plainly.
+Stated plainly.
 
-1. **No SwiftData.** See the section above. Core Data behind the same protocol.
-2. **No app icon.** Compiling an `.icns` asset catalogue needs Xcode's asset tooling. The menu-bar
-   item uses SF Symbols and looks correct; only the bundle icon is missing.
-3. **Ad-hoc signed only.** Fine on the machine that built it. Distributing to other Macs needs a
-   Developer ID signature and notarization, which need a paid Apple Developer account.
-4. **Reordering is menu-driven, not drag-and-drop.** `TaskRules.reorder` and the coordinator both
-   support arbitrary reordering and are tested; the panel exposes it through commands rather than
-   dragging, because drag-and-drop inside a borderless non-activating panel is unreliable.
+1. **No SwiftData** — see above. Core Data behind the same protocol.
+2. **No app icon.** Compiling an `.icns` needs Xcode's asset tooling.
+3. **Ad-hoc signed.** Distributing to other Macs needs Developer ID signing and notarization.
+4. **Reordering is menu-driven**, not drag-and-drop — dragging inside a borderless non-activating
+   panel is unreliable.
 5. **Full-screen apps.** The panel is `.fullScreenAuxiliary` and appears over full-screen spaces
-   where macOS permits it. macOS does not always permit it, and QuickWins cannot override that.
-6. **No trackpad haptics for alerts.** A MacBook has no phone-style vibration, and trackpad haptics
-   only fire in response to direct interaction — they are useless for an unattended alert, so they
-   are not used or advertised.
-7. **Timer restoration is bounded by the heartbeat.** After a force quit or long sleep, up to 60
-   seconds of genuine focus time may be discarded. That is deliberate: under-counting is safer than
-   crediting an overnight sleep as work.
-8. **Some UI paths are verified manually.** See [docs/MANUAL_QA.md](docs/MANUAL_QA.md) for exactly
-   which, and how to check them.
+   where macOS permits it, which is not always.
+6. **Up to 60 seconds of focus can be lost** after a force quit — the heartbeat interval.
+   Deliberate: under-counting beats crediting an overnight sleep as work.
+7. **The graph starts empty.** History began when session recording shipped.
+8. **Some paths are verified by hand**, and a handful remain unverified. See the QA checklist.
 
 ---
 
 ## Troubleshooting
 
-**The panel does not appear when I press ⌥Space.**
-Another app may hold the shortcut. Open Settings › General — a conflict is reported there. Record a
-different combination, or use the menu-bar item. Launching QuickWins again (Finder, Spotlight, or
-`open`) also shows the panel.
+**`⌥Space` does nothing** — another app may hold it. Settings › General reports the conflict; the
+menu-bar item always works.
 
-**The panel opened on the wrong monitor.**
-It opens on the display containing the pointer, which is not always the one you are looking at.
-Turn off *Open beside the pointer* in Settings to centre it on the active screen instead.
+**The panel opened on the wrong monitor** — it follows your pointer, which isn't always the screen
+you're looking at. Turn off *Open beside the pointer*.
 
-**No notifications arrive.**
-Check System Settings › Notifications › QuickWins. If permission was denied, the panel shows a
-banner and check-ins continue there. Notifications also require running from `QuickWins.app`
-rather than the bare executable.
+**No notifications** — check System Settings › Notifications. Denial is handled; check-ins appear
+in the panel instead. Requires running from `QuickWins.app`, not the bare executable.
 
-**Launch at login is greyed out.**
-`SMAppService` needs a real bundle. Run `dist/QuickWins.app`, ideally from `/Applications`.
+**Check-ins fire while reading** — snooze from the menu bar (5/15/30 min or until you resume), or
+turn off *Inactivity check-ins* for that task.
 
-**Check-ins fire while I am reading or in a meeting.**
-Snooze from the menu bar or the panel's ⋯ menu (5/15/30 minutes, or until you resume), or turn off
-*Inactivity check-ins* for that specific task in the editor. Thresholds and quiet hours are in
-Settings › Check-ins.
-
-**"The task database was rebuilt after a read error."**
-The store could not be opened and was quarantined next to the original as
-`QuickWins.sqlite.corrupt-<timestamp>`. Your previous data is in that file.
-
-**Something is wrong and I need detail.**
-Settings › Advanced › Export diagnostic log. It contains no task content.
-
----
-
-## Manual QA
-
-[docs/MANUAL_QA.md](docs/MANUAL_QA.md) lists every scenario, which are covered by automated tests,
-and step-by-step procedures for the ones that need a person.
+**Something's wrong** — Settings › Advanced › Export diagnostic log. It contains no task content.
 
 ---
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Changes: [CHANGELOG.md](CHANGELOG.md).
