@@ -23,14 +23,21 @@ struct StatsView: View {
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(minWidth: 820, minHeight: 560)
+        .frame(minWidth: 640, minHeight: 560)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
     // MARK: - Data
 
+    /// How far the graph reaches either side of today.
+    private static let monthsBack = 3
+    private static let monthsForward = 3
+
     private var grid: ContributionGrid {
-        ContributionGridRules.build(endingOn: model.today)
+        ContributionGridRules.build(
+            from: model.today.adding(months: -Self.monthsBack),
+            to: model.today.adding(months: Self.monthsForward)
+        )
     }
 
     private var summaries: [DayKey: DaySummary] {
@@ -38,9 +45,10 @@ struct StatsView: View {
         return model.daySummaries(from: built.firstDay, to: built.lastDay)
     }
 
+    /// Statistics stop at today. The forward half of the graph is there to be filled in, and
+    /// counting it would only dilute averages with days that have not happened.
     private var statistics: FocusStatistics {
-        let built = grid
-        return model.statistics(from: built.firstDay, to: built.lastDay)
+        model.statistics(from: grid.firstDay, to: model.today)
     }
 
     private var hasAnyHistory: Bool { statistics.totalSeconds > 0 }
@@ -50,7 +58,7 @@ struct StatsView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(hasAnyHistory
-                 ? "\(FocusTimeFormatter.abbreviated(statistics.totalSeconds)) focused in the last year"
+                 ? "\(FocusTimeFormatter.abbreviated(statistics.totalSeconds)) focused in the last \(Self.monthsBack) months"
                  : "No focus recorded yet")
                 .font(.title2.weight(.semibold))
             Text("Time with a timer running. Not a measure of how the work went.")
@@ -68,7 +76,9 @@ struct StatsView: View {
                 grid: built,
                 summaries: summaries,
                 today: model.today,
-                tint: Theme.accent
+                tint: Theme.accent,
+                cell: 14,
+                gap: 4
             )
 
             if !hasAnyHistory {

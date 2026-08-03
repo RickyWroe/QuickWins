@@ -10,6 +10,25 @@ enum Theme {
     static let minimumHitTarget: CGFloat = 22
     static let maximumListHeight: CGFloat = 240
 
+    /// Panel geometry.
+    ///
+    /// The panel window's height is computed from these rather than measured from the view. A
+    /// window that sizes itself to SwiftUI content containing a `ScrollView` is ambiguous: the
+    /// scroll view wants to be as tall as its content, the window resizes to match, the scroll
+    /// view re-measures, and AppKit's constraint engine recurses until the stack is exhausted.
+    /// Adding a task did exactly that. Slight over-estimation here shows as a little empty space
+    /// above the quick-add field, which is harmless; the alternative is a crash.
+    static let panelHeaderHeight: CGFloat = 38
+    static let panelDividerHeight: CGFloat = 1
+    static let panelActiveCardHeight: CGFloat = 204
+    static let panelEmptyFocusHeight: CGFloat = 142
+    static let panelSectionHeaderHeight: CGFloat = 27
+    static let panelRowHeight: CGFloat = 30
+    static let panelListBottomPadding: CGFloat = 6
+    static let panelQuickAddHeight: CGFloat = 39
+    static let panelMinimumHeight: CGFloat = 170
+    static let panelMaximumHeight: CGFloat = 580
+
     /// The system accent colour, so QuickWins matches whatever the user picked in Appearance
     /// settings rather than imposing a brand colour.
     static let accent = Color.accentColor

@@ -3,6 +3,9 @@ import SwiftUI
 
 struct PanelRootView: View {
     @ObservedObject var model: AppModel
+    /// The exact height the window will be, computed by the controller. Pinned rather than
+    /// proposed — see the note on `Theme.panelHeaderHeight`.
+    let height: CGFloat
     let dismiss: () -> Void
 
     @FocusState private var quickAddFocused: Bool
@@ -24,9 +27,12 @@ struct PanelRootView: View {
 
             TaskListView(model: model)
 
+            // Any surplus from the height estimate lands here rather than stretching a section.
+            Spacer(minLength: 0)
+
             QuickAddField(model: model, isFocused: $quickAddFocused)
         }
-        .frame(width: Theme.panelWidth)
+        .frame(width: Theme.panelWidth, height: height)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
         .overlay(

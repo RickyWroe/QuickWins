@@ -14,8 +14,8 @@ struct ContributionGraphView: View {
     let today: DayKey
     let tint: Color
 
-    private let cell: CGFloat = 11
-    private let gap: CGFloat = 3
+    var cell: CGFloat = 11
+    var gap: CGFloat = 3
 
     private var weekdaySymbols: [String] {
         let formatter = DateFormatter()

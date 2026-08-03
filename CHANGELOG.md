@@ -5,6 +5,28 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-08-03
+
+### Fixed
+
+- **Adding a task crashed the app.** Same recursion family as the HUD crashes, now in the panel:
+  `HostingScrollView.PlatformContainer.setFrameSize` → autoresizing constraints → `NSISEngine`,
+  until the stack was exhausted. The panel window still sized itself to its SwiftUI content, and
+  that content holds a `ScrollView` — the scroll view wants to be as tall as its content, the
+  window resizes to match, the scroll view re-measures. Adding a task set it off.
+
+  The panel's height is now computed by its controller from what it is about to show — how many
+  rows, which sections, whether a task is in focus — and the view is pinned to that height rather
+  than proposing one. Verified by adding ten tasks in a row with the panel open: no crash, the
+  panel growing 313 → 460 points and capping there as the list reaches its scroll limit.
+
+### Changed
+
+- **The contribution graph now spans three months back and three months forward** rather than a
+  year. Cells are larger and easier to hit, the forward half shows planned rest days, and
+  statistics still stop at today — counting days that have not happened would only dilute the
+  averages.
+
 ## [1.3.1] — 2026-08-01
 
 ### Fixed
@@ -247,6 +269,7 @@ Initial implementation.
 - Ships without an app icon, which needs Xcode's asset tooling.
 - Ad-hoc signed. Distribution to other Macs requires Developer ID signing and notarization.
 
+[1.4.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.4.0
 [1.3.1]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.3.1
 [1.3.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.3.0
 [1.2.0]: https://github.com/RickyWroe/QuickWins/releases/tag/v1.2.0

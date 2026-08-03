@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import QuickWinsCore
 import SwiftUI
 
@@ -13,6 +14,9 @@ final class FloatingPanelController {
     private var panel: FloatingPanel?
     private var hosting: NSHostingController<PanelRootView>?
     private var outsideClickMonitor: Any?
+    private var contentChangeObserver: AnyCancellable?
+    /// Re-entrancy guard around every frame change, as in the HUD controller.
+    private var isAdjustingFrame = false
     /// The app to hand focus back to when the panel closes.
     private weak var previouslyActiveApp: NSRunningApplication?
 
@@ -49,6 +53,7 @@ final class FloatingPanelController {
             previouslyActiveApp = NSWorkspace.shared.frontmostApplication
         }
 
+        syncContentSize()
         position(panel, besideCursor: useCursor)
 
         NSApp.activate(ignoringOtherApps: true)
@@ -81,10 +86,16 @@ final class FloatingPanelController {
     private func ensurePanel() -> FloatingPanel {
         if let panel { return panel }
 
-        let rootView = PanelRootView(model: model, dismiss: { [weak self] in self?.hide() })
+        let rootView = PanelRootView(
+            model: model,
+            height: contentHeight,
+            dismiss: { [weak self] in self?.hide() }
+        )
         let hosting = NSHostingController(rootView: rootView)
-        // Lets the SwiftUI content drive the window height as the task list grows.
-        hosting.sizingOptions = [.preferredContentSize]
+        // The controller owns the window size; SwiftUI never proposes one. Letting the content
+        // drive the window while that content holds a ScrollView is what crashed the app when a
+        // task was added — the scroll view and the window resized each other without settling.
+        hosting.sizingOptions = []
 
         let panel = FloatingPanel(
             contentRect: NSRect(x: 0, y: 0, width: Self.panelWidth, height: 320)
@@ -94,16 +105,68 @@ final class FloatingPanelController {
 
         self.panel = panel
         self.hosting = hosting
+
+        // The panel's height depends on how many tasks there are, so it has to be recomputed
+        // whenever the model changes. `objectWillChange` fires before the change lands, so the
+        // recalculation is deferred by one turn of the run loop.
+        contentChangeObserver = model.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.syncContentSize() }
+        }
+
         return panel
+    }
+
+    // MARK: - Sizing
+
+    /// The panel's height, derived from what it is about to show rather than measured from it.
+    private var contentHeight: CGFloat {
+        var height = Theme.panelHeaderHeight + Theme.panelDividerHeight
+        height += model.focusTask == nil ? Theme.panelEmptyFocusHeight : Theme.panelActiveCardHeight
+
+        let sections = [model.overdue.isEmpty, model.upcoming.isEmpty, model.completed.isEmpty]
+            .filter { !$0 }
+            .count
+        let rows = model.overdue.count + model.upcoming.count + model.completed.count
+        if rows > 0 {
+            let content = CGFloat(sections) * Theme.panelSectionHeaderHeight
+                + CGFloat(rows) * Theme.panelRowHeight
+                + Theme.panelListBottomPadding
+            height += min(Theme.maximumListHeight, content)
+        }
+
+        height += Theme.panelQuickAddHeight
+        return min(max(height, Theme.panelMinimumHeight), Theme.panelMaximumHeight)
+    }
+
+    /// Applies the computed height. The only place the panel window's size is set.
+    private func syncContentSize() {
+        guard let panel, let hosting, !isAdjustingFrame else { return }
+        let target = CGSize(width: Theme.panelWidth, height: contentHeight)
+
+        // The view is told the same height, so it never wants a different one.
+        if hosting.rootView.height != target.height {
+            hosting.rootView = PanelRootView(
+                model: model,
+                height: target.height,
+                dismiss: { [weak self] in self?.hide() }
+            )
+        }
+
+        guard abs(target.height - panel.frame.height) > 0.5
+                || abs(target.width - panel.frame.width) > 0.5 else { return }
+
+        isAdjustingFrame = true
+        // Keep the top edge where it is as the panel grows downward.
+        let top = panel.frame.maxY
+        panel.setContentSize(target)
+        panel.setFrameOrigin(CGPoint(x: panel.frame.origin.x, y: top - panel.frame.height))
+        isAdjustingFrame = false
     }
 
     // MARK: - Positioning
 
     private func position(_ panel: FloatingPanel, besideCursor: Bool) {
-        // No `layoutIfNeeded()`: the hosting controller sizes the window from its content, so
-        // forcing a window layout pass re-enters NSWindow's resize constraints and recurses
-        // until the stack is exhausted. The height falls back to a sane minimum instead.
-        let size = CGSize(width: Self.panelWidth, height: max(panel.frame.height, 120))
+        let size = CGSize(width: Theme.panelWidth, height: panel.frame.height)
 
         guard besideCursor else {
             centerOnActiveScreen(panel, size: size)

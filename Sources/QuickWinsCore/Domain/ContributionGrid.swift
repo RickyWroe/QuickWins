@@ -26,6 +26,30 @@ public enum ContributionGridRules {
     /// A full year, the way GitHub draws it.
     public static let defaultWeeks = 53
 
+    /// Builds a grid spanning a range, expanded outward to whole weeks at both ends.
+    ///
+    /// Whole weeks matter because a ragged first or last column reads as a rendering fault rather
+    /// than as a boundary.
+    public static func build(
+        from start: DayKey,
+        to end: DayKey,
+        firstWeekday: Int? = nil,
+        calendar: Calendar = .current
+    ) -> ContributionGrid {
+        let startOfWeek = firstWeekday ?? calendar.firstWeekday
+        let startWeekday = calendar.component(.weekday, from: start.startOfDay(in: calendar))
+        let firstWeekStart = start.adding(days: -(((startWeekday - startOfWeek) + 7) % 7), in: calendar)
+
+        // Count the weeks needed to reach the end day, then reuse the aligned builder.
+        var weeks = 1
+        var cursor = firstWeekStart
+        while cursor.adding(days: 6, in: calendar) < end, weeks < 400 {
+            cursor = cursor.adding(days: 7, in: calendar)
+            weeks += 1
+        }
+        return build(endingOn: cursor, weeks: weeks, firstWeekday: startOfWeek, calendar: calendar)
+    }
+
     /// Builds a grid ending on `endingOn`, aligned so every row is the same weekday.
     ///
     /// The grid is extended forward to the end of the final week rather than stopping at today,

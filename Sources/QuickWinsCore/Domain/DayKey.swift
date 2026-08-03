@@ -53,6 +53,11 @@ public struct DayKey: Hashable, Comparable, Codable, Sendable, CustomStringConve
         return DayKey(date: shifted ?? startOfDay(in: calendar), calendar: calendar)
     }
 
+    public func adding(months: Int, in calendar: Calendar = .current) -> DayKey {
+        let shifted = calendar.date(byAdding: .month, value: months, to: startOfDay(in: calendar))
+        return DayKey(date: shifted ?? startOfDay(in: calendar), calendar: calendar)
+    }
+
     public static func today(_ time: TimeSource, calendar: Calendar = .current) -> DayKey {
         DayKey(date: time.now, calendar: calendar)
     }

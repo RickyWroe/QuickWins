@@ -17,7 +17,7 @@ Run the automated suite with:
 ./Scripts/test.sh
 ```
 
-Last executed: **242 tests in 24 suites, all passing.**
+Last executed: **248 tests in 25 suites, all passing.**
 
 ---
 
@@ -144,6 +144,8 @@ Last executed: **242 tests in 24 suites, all passing.**
 
 | # | Scenario | Status | Notes |
 |---|---|---|---|
+| D0 | Adding a task does not crash the panel | **[VERIFIED]** | Regression cover. Ten tasks added in succession with the panel open: process alive throughout, panel grew 313 → 460 points and capped, zero crash reports. |
+| D0b | Graph spans three months either side of today | **[VERIFIED]** | Captured live: May–Nov, today ringed, future half dimmed with rest days dashed. |
 | D1 | Grid geometry | **[AUTO]** | Rows aligned by weekday, days contiguous with no gaps or repeats, final week complete, month labels at the right columns, crowded labels thinned. |
 | D2 | Dashboard renders | **[VERIFIED]** | Captured live at 820×620: header, full-year graph, legend, streak cards, session cards, and the peak-hour section. |
 | D3 | Rest days differ by shape, not shade | **[VERIFIED]** | Inspected at native resolution: the Saturday and Sunday rows are dashed, the five weekday rows solid. Confirmed only after a native-res crop — an upscaled screenshot had aliased the solid borders into looking dashed. |
